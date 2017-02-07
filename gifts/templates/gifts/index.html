@@ -1,0 +1,16 @@
+{% if gift_list %}
+  <ul>
+  {% for gift in gift_list %}
+      <li><a href="{% url 'gifts:detail' gift.id %}">
+              {{ gift.date }}: {{ gift.item}} a {{ gift.person }} ({{ gift.price }} €)
+              {% if gift.done %}
+                  ✔
+              {% else %}
+                  ✘
+              {% endif %}
+          </a></li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p>No se encontraron regalos.</p>
+{% endif %}

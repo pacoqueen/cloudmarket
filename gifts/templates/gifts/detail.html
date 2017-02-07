@@ -1,0 +1,13 @@
+<h1>{{ gift.date }}</h1>
+
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+
+<form action="{% url 'gifts:mark' gift.id %}" method="post">
+    {% csrf_token %}
+    <input type="checkbox" name="done" id="donebox"
+        {% if gift.done  %} checked="checked" {% endif %} />
+    <label for="donebox">{{ gift }} <!-- Confío en la representación del objeto -->
+    </label>
+    <input type="submit" value="Guardar" />
+</form>
+
