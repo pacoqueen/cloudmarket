@@ -1,0 +1,16 @@
+li a {
+    color: green;
+}
+
+.check_ok {
+    color: green;
+}
+
+.check_ko {
+    color: red;
+}
+
+body {
+    background: white url("images/logo.svg") no-repeat right bottom;
+    background-size: 40px 40px;
+}

@@ -15,7 +15,7 @@ class IndexView(generic.ListView):
 
     def get_queryset(self):
         """Devuelve todos los regalos de la base de datos."""
-        return Gift.objects.order_by("-date")[:]
+        return Gift.objects.order_by("-date")
 
 
 class DetailView(generic.DetailView):

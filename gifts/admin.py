@@ -13,10 +13,24 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = ('description', 'photo')
 
 
+class GiftInline(admin.StackedInline):
+    model = Gift
+    extra = 1
+
+
 class GiftAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'date', 'price', 'done')
     list_filter = ('date', 'price')
+    fields = ['person', 'item', 'date', 'price', 'done']
 
-admin.site.register(Person)
+
+class PersonAdmin(admin.ModelAdmin):
+    filedsets = [
+            (None,      {'fields': ['name']}),
+            ('Fecha',   {'fields': ['date'], 'classes': ['collapse']}),
+            ]
+    inlines = [GiftInline]
+
+admin.site.register(Person, PersonAdmin)
 admin.site.register(Gift, GiftAdmin)
 admin.site.register(Item, ItemAdmin)
