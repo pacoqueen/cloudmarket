@@ -5,13 +5,13 @@
   <ul>
   {% for gift in gift_list %}
       <li><a href="{% url 'gifts:detail' gift.id %}">
-              {{ gift.date }}: {{ gift.item}} a {{ gift.person }} ({{ gift.price }} €)
-              {% if gift.done %}
-                  <span class="check_ok">✔</span>
-              {% else %}
-                  <span class="check_ko">✘</span>
-              {% endif %}
-          </a></li>
+              {{ gift.date }}: {{ gift.item}} a {{ gift.person }} ({{ gift.price }} €)</a><sp>
+          {% if gift.done %}
+              <span class="check_ok">✔</span>
+          {% else %}
+              <span class="check_ko">✘</span>
+          {% endif %}
+      </li>
   {% endfor %}
   </ul>
 {% else %}
