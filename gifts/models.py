@@ -21,8 +21,8 @@ class Person(models.Model):
 
 
 class Gift(models.Model):
-    person = models.ForeignKey(Person)
-    item = models.ForeignKey(Item)
+    person = models.ForeignKey(Person, on_delete=models.CASCADE)
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
     date = models.DateField()
     done = models.BooleanField(default=False)
     price = models.FloatField(default=None, blank=True)
