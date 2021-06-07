@@ -64,3 +64,9 @@ cloudmarket/media/
 
 
 staticfiles/
+
+# virtualenv dirs
+bin/
+include/
+lib/
+share/
