@@ -57,6 +57,7 @@ node_modules/
 
 # virtual environments
 .env
+pyvenv.cfg
 
 # User-uploaded media
 cloudmarket/media/
@@ -70,3 +71,4 @@ bin/
 include/
 lib/
 share/
+lib64
