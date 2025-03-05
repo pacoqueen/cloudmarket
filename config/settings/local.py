@@ -46,7 +46,8 @@ CACHES = {
 
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
-MIDDLEWARE += ('debug_toolbar.middleware.DebugToolbarMiddleware',)
+MIDDLEWARE += ('debug_toolbar.middleware.DebugToolbarMiddleware',
+               'allauth.account.middleware.AccountMiddleware')
 INSTALLED_APPS += ('debug_toolbar', )
 
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', ]
@@ -72,5 +73,5 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 # Your local stuff: Below this line define 3rd party library settings
 # ------------------------------------------------------------------------------
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['cloudmarket.es'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['dev.cloudmarket.es, cloudmarket.es'])
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
