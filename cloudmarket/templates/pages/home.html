@@ -1,1 +1,9 @@
 {% extends "base.html" %}
+
+{% block content %}
+  {% if request.user.is_authenticated %}
+    <p>Hola holita, vecinito.</p>
+  {% else %}
+    <p>Who are you? Uh-uh-uh-uh</p>
+  {% endif %}
+{% endblock %}
