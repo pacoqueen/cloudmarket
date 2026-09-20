@@ -9,6 +9,7 @@ class Item(models.Model):
     url = models.URLField(blank = True)
     notes = models.TextField(blank = True)
     photo = models.ImageField(upload_to = "img", blank = True)
+    image_url = models.URLField(blank = True, help_text = "Foto del producto obtenida de la página de compra.")
 
     def __str__(self):
         return self.description
@@ -30,9 +31,11 @@ class Item(models.Model):
         return ("https://www.google.com/s2/favicons?domain={}&sz=64").format(host)
 
     def preview_url(self):
-        """Miniatura del artículo: la foto subida o el favicon del sitio."""
+        """Miniatura del artículo: la foto subida, la del producto o el favicon del sitio."""
         if self.photo:
             return self.photo.url
+        if self.image_url:
+            return self.image_url
         return self.favicon_url()
 
 

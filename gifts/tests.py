@@ -6,6 +6,7 @@ from django.test import RequestFactory, TestCase
 # Create your tests here.
 
 from .models import Gift, Person, Item
+from .services import extract_product_image
 from .views import IndexView
 
 
@@ -48,6 +49,79 @@ class ItemMethodTests(TestCase):
     def test_preview_url_uses_photo_when_present(self):
         item = Item(url="https://shop.example.com/item/1", photo="img/regalo.png")
         self.assertEqual(item.preview_url(), "/media/img/regalo.png")
+
+    def test_preview_url_uses_image_url_when_no_photo(self):
+        item = Item(
+            url="https://shop.example.com/item/1",
+            image_url="https://shop.example.com/img/producto.jpg",
+        )
+        self.assertEqual(item.preview_url(), "https://shop.example.com/img/producto.jpg")
+
+    def test_preview_url_prefers_photo_over_image_url(self):
+        item = Item(
+            url="https://shop.example.com/item/1",
+            photo="img/manual.png",
+            image_url="https://shop.example.com/img/producto.jpg",
+        )
+        self.assertEqual(item.preview_url(), "/media/img/manual.png")
+
+    def test_preview_url_falls_back_to_favicon(self):
+        item = Item(url="https://shop.example.com/item/1")
+        self.assertIn("shop.example.com", item.preview_url())
+
+
+class ProductImageTests(TestCase):
+
+    def test_extracts_og_image(self):
+        html = (
+            '<html><head>'
+            '<meta property="og:title" content="Coche" />'
+            '<meta property="og:image" content="https://shop.example.com/foto.jpg" />'
+            '</head><body></body></html>'
+        )
+        self.assertEqual(
+            extract_product_image(html, "https://shop.example.com/item/1"),
+            "https://shop.example.com/foto.jpg",
+        )
+
+    def test_extracts_twitter_image_as_fallback(self):
+        html = (
+            '<meta name="twitter:image" '
+            'content="https://shop.example.com/twitter.jpg" />'
+        )
+        self.assertEqual(
+            extract_product_image(html, "https://shop.example.com/item/1"),
+            "https://shop.example.com/twitter.jpg",
+        )
+
+    def test_og_image_wins_over_twitter_and_img(self):
+        html = (
+            '<meta property="og:image" content="/og.jpg" />'
+            '<meta name="twitter:image" content="/tw.jpg" />'
+            '<img src="/thumbs/thumb.jpg" />'
+        )
+        self.assertEqual(
+            extract_product_image(html, "https://shop.example.com/item/1"),
+            "https://shop.example.com/og.jpg",
+        )
+
+    def test_falls_back_to_first_img(self):
+        html = '<img src="https://cdn.example.com/producto.jpg" alt="x" />'
+        self.assertEqual(
+            extract_product_image(html, "https://shop.example.com/item/1"),
+            "https://cdn.example.com/producto.jpg",
+        )
+
+    def test_resolves_relative_img_url(self):
+        html = '<img src="/media/photos/regalo.jpg" />'
+        self.assertEqual(
+            extract_product_image(html, "https://shop.example.com/item/1"),
+            "https://shop.example.com/media/photos/regalo.jpg",
+        )
+
+    def test_empty_when_no_image_found(self):
+        html = "<html><head><title>nada</title></head></html>"
+        self.assertEqual(extract_product_image(html, "https://shop.example.com/i"), "")
 
 
 class IndexViewGroupingTests(TestCase):
