@@ -50,7 +50,7 @@ MIDDLEWARE += ('debug_toolbar.middleware.DebugToolbarMiddleware',
                'allauth.account.middleware.AccountMiddleware')
 INSTALLED_APPS += ('debug_toolbar', )
 
-INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', ]
+INTERNAL_IPS = ['127.0.0.1', '10.0.2.2', '192.168.122.217']
 # tricks to have debug toolbar when developing with docker
 if os.environ.get('USE_DOCKER') == 'yes':
     ip = socket.gethostbyname(socket.gethostname())
@@ -73,5 +73,5 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 # Your local stuff: Below this line define 3rd party library settings
 # ------------------------------------------------------------------------------
-ALLOWED_HOSTS = ('192.168.122.218', )
+ALLOWED_HOSTS = ('192.168.122.217', )
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
