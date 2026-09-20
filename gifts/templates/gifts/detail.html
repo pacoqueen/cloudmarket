@@ -1,13 +1,22 @@
-<h1>{{ gift.date }}</h1>
+{% load static %}
 
-{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+<link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
 
-<form action="{% url 'gifts:mark' gift.id %}" method="post">
-    {% csrf_token %}
-    <input type="checkbox" name="done" id="donebox"
-        {% if gift.done  %} checked="checked" {% endif %} />
-    <label for="donebox">{{ gift }} <!-- Confío en la representación del objeto -->
-    </label>
-    <input type="submit" value="Guardar" />
-</form>
+<section class="gift-detail">
+  <div class="gift-detail__card">
+    <h1 class="gift-detail__heading">{{ gift }}</h1>
 
+    {% if error_message %}<p class="gift-detail__error"><strong>{{ error_message }}</strong></p>{% endif %}
+
+    <p class="gift-detail__hint">Marca el regalo como entregado o pendiente:</p>
+
+    <form class="mark-form" action="{% url 'gifts:mark' gift.id %}" method="post">
+        {% csrf_token %}
+        <label class="toggle" for="donebox">
+            <input type="checkbox" name="done" id="donebox"{% if gift.done %} checked="checked" {% endif %} />
+            {{ gift.done|yesno:"Entregado,Pendiente" }}
+        </label>
+        <input class="mark-form__submit" type="submit" value="Guardar" />
+    </form>
+  </div>
+</section>

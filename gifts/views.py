@@ -14,8 +14,27 @@ class IndexView(generic.ListView):
     context_object_name = 'gift_list'
 
     def get_queryset(self):
-        """Devuelve todos los regalos de la base de datos."""
-        return Gift.objects.order_by("-date")
+        """Devuelve los regalos ordenados por estado y fecha: primero los pendientes."""
+        queryset = Gift.objects.order_by("done", "-date")
+        status = self.request.GET.get("status")
+        if status == "done":
+            queryset = queryset.filter(done=True)
+        elif status == "pending":
+            queryset = queryset.filter(done=False)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        """Agrupa los regalos por persona destinataria."""
+        context = super().get_context_data(**kwargs)
+        grouped = {}
+        for gift in context["gift_list"]:
+            grouped.setdefault(gift.person, []).append(gift)
+        context["person_groups"] = [
+            {"person": person, "gifts": gifts}
+            for person, gifts in sorted(grouped.items(), key=lambda pair: pair[0].name.lower())
+        ]
+        context["current_status"] = self.request.GET.get("status", "")
+        return context
 
 
 class DetailView(generic.DetailView):

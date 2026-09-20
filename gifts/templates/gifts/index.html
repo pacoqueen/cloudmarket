@@ -1,19 +1,60 @@
 {% load static %}
 
 <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
-{% if gift_list %}
-  <ul>
-  {% for gift in gift_list %}
-      <li><a href="{% url 'gifts:detail' gift.id %}">
-              {{ gift.date }}: {{ gift.item}} a {{ gift.person }} ({{ gift.price }} €)</a><sp>
-          {% if gift.done %}
-              <span class="check_ok">✔</span>
-          {% else %}
-              <span class="check_ko">✘</span>
-          {% endif %}
+
+<section class="gift-list">
+  <h1 class="gift-list__title">Regalos</h1>
+  <nav class="filter-bar" aria-label="Filtrar regalos">
+    <a class="filter-link{% if current_status == '' %} filter-link--active{% endif %}"
+       href="{% url 'gifts:index' %}">Todos</a>
+    <a class="filter-link{% if current_status == 'pending' %} filter-link--active{% endif %}"
+       href="{% url 'gifts:index' %}?status=pending">Pendientes</a>
+    <a class="filter-link{% if current_status == 'done' %} filter-link--active{% endif %}"
+       href="{% url 'gifts:index' %}?status=done">Regalados</a>
+  </nav>
+  {% if gift_list %}
+    <p class="gift-list__subtitle">{{ gift_list|length }} regalo{{ gift_list|length|pluralize }} para {{ person_groups|length }} persona{{ person_groups|length|pluralize }}</p>
+  {% endif %}
+  {% for group in person_groups %}
+    <h2 class="person-group__title">{{ group.person.name }}</h2>
+    <ul class="gift-grid">
+    {% for gift in group.gifts %}
+      <li class="gift-card">
+        <a class="gift-card__link" href="{% url 'gifts:detail' gift.id %}">
+          <span class="gift-card__top">
+            <span class="gift-card__title">
+              <span class="gift-card__item">{{ gift.item }}</span>
+            </span>
+            {% if gift.item.preview_url %}
+              <img class="gift-card__preview" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+            {% endif %}
+            {% if gift.done %}
+              <span class="status-badge status-badge--ok" aria-label="Regalado">✔</span>
+            {% else %}
+              <span class="status-badge status-badge--ko" aria-label="Pendiente">✘</span>
+            {% endif %}
+          </span>
+          <span class="gift-card__footer">
+            <span class="gift-card__chip gift-card__chip--date">{{ gift.date }}</span>
+            {% if gift.price %}
+              <span class="gift-card__chip gift-card__chip--price">{{ gift.price }} €</span>
+            {% endif %}
+          </span>
+        </a>
+        {% if gift.item.url %}
+          <a class="gift-card__article" href="{{ gift.item.url }}" target="_blank" rel="noopener noreferrer">
+            {% if gift.item.preview_url %}
+              <img class="gift-card__article-ico" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+            {% endif %}
+            Ver artículo en {{ gift.item.url_host }} ↗
+          </a>
+        {% endif %}
       </li>
+    {% endfor %}
+    </ul>
+  {% empty %}
+    <ul class="gift-grid">
+      <li class="gift-list__empty">No se encontraron regalos.</li>
+    </ul>
   {% endfor %}
-  </ul>
-{% else %}
-  <p>No se encontraron regalos.</p>
-{% endif %}
+</section>

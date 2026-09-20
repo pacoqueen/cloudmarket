@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from django.db import models
 
 # Create your models here.
@@ -10,6 +12,28 @@ class Item(models.Model):
 
     def __str__(self):
         return self.description
+
+    def url_host(self):
+        """Devuelve el dominio del enlace del artículo (si lo hay)."""
+        if not self.url:
+            return ""
+        try:
+            return urlparse(self.url).netloc
+        except ValueError:
+            return ""
+
+    def favicon_url(self):
+        """Favicon del sitio del artículo, usado como miniatura."""
+        host = self.url_host()
+        if not host:
+            return ""
+        return ("https://www.google.com/s2/favicons?domain={}&sz=64").format(host)
+
+    def preview_url(self):
+        """Miniatura del artículo: la foto subida o el favicon del sitio."""
+        if self.photo:
+            return self.photo.url
+        return self.favicon_url()
 
 
 class Person(models.Model):
