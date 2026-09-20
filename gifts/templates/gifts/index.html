@@ -6,12 +6,30 @@
   <h1 class="gift-list__title">Regalos</h1>
   <nav class="filter-bar" aria-label="Filtrar regalos">
     <a class="filter-link{% if current_status == '' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}">Todos</a>
+       href="{% url 'gifts:index' %}{% if person_qs %}?{{ person_qs }}{% endif %}">Todos</a>
     <a class="filter-link{% if current_status == 'pending' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}?status=pending">Pendientes</a>
+       href="{% url 'gifts:index' %}?status=pending{% if person_qs %}&{{ person_qs }}{% endif %}">Pendientes</a>
     <a class="filter-link{% if current_status == 'done' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}?status=done">Regalados</a>
+       href="{% url 'gifts:index' %}?status=done{% if person_qs %}&{{ person_qs }}{% endif %}">Regalados</a>
   </nav>
+  {% if all_persons %}
+    <form class="person-filter" method="get" action="{% url 'gifts:index' %}">
+      <fieldset class="person-filter__fieldset">
+        <legend class="person-filter__title">Destinatarios</legend>
+        {% if current_status %}
+          <input type="hidden" name="status" value="{{ current_status }}" />
+        {% endif %}
+        {% for person in all_persons %}
+          <label class="person-pill{% if person.id in current_person_ids %} person-pill--active{% endif %}">
+            <input type="checkbox" name="person" value="{{ person.id }}"
+                   {% if person.id in current_person_ids %}checked{% endif %} />
+            {{ person.name }}
+          </label>
+        {% endfor %}
+        <button class="filter-link" type="submit">Aplicar</button>
+      </fieldset>
+    </form>
+  {% endif %}
   {% if gift_list %}
     <p class="gift-list__subtitle">{{ gift_list|length }} regalo{{ gift_list|length|pluralize }} para {{ person_groups|length }} persona{{ person_groups|length|pluralize }}</p>
   {% endif %}

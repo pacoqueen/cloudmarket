@@ -112,3 +112,75 @@ class IndexViewFilterTests(TestCase):
         context = self._query(status="done")
         self.assertEqual([gift.item.description for gift in context["gift_list"]], ["Entregado"])
         self.assertEqual(context["current_status"], "done")
+
+
+class IndexViewPersonFilterTests(TestCase):
+
+    def setUp(self):
+        self.ana = Person.objects.create(name="Ana")
+        self.luis = Person.objects.create(name="Luis")
+        self.sin_regalos = Person.objects.create(name="Sin Regalos")
+        item_a = Item.objects.create(description="Regalo Ana", url="")
+        item_b = Item.objects.create(description="Regalo Luis 1", url="")
+        item_c = Item.objects.create(description="Regalo Luis 2", url="")
+        Gift.objects.create(person=self.ana, item=item_a, date="2026-01-01", price=10.0)
+        Gift.objects.create(person=self.luis, item=item_b, date="2026-02-01", price=20.0)
+        Gift.objects.create(person=self.luis, item=item_c, date="2026-03-01", price=30.0)
+
+    def _query(self, query_string=""):
+        url = "/gifts/"
+        if query_string:
+            url = "{}?{}".format(url, query_string)
+        view = IndexView()
+        view.request = RequestFactory().get(url)
+        view.object_list = view.get_queryset()
+        return view.get_context_data()
+
+    def test_no_selection_shows_all_gifts(self):
+        context = self._query()
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Regalo Luis 2", "Regalo Luis 1", "Regalo Ana"],
+        )
+        self.assertEqual(context["person_qs"], "")
+
+    def test_filter_single_person(self):
+        context = self._query("person={}".format(self.ana.id))
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Regalo Ana"],
+        )
+        self.assertEqual(context["current_person_ids"], [self.ana.id])
+
+    def test_filter_multiple_persons(self):
+        context = self._query("person={}&person={}".format(self.ana.id, self.luis.id))
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Regalo Luis 2", "Regalo Luis 1", "Regalo Ana"],
+        )
+        self.assertEqual(context["person_qs"], "person={}&person={}".format(self.ana.id, self.luis.id))
+
+    def test_filter_combined_with_status(self):
+        item_done = Item.objects.create(description="Hecho Luis", url="")
+        Gift.objects.create(person=self.luis, item=item_done, date="2026-04-01",
+                            price=40.0, done=True)
+        context = self._query("person={}&status=pending".format(self.luis.id))
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Regalo Luis 2", "Regalo Luis 1"],
+        )
+        self.assertEqual(context["current_status"], "pending")
+
+    def test_invalid_person_param_is_ignored(self):
+        context = self._query("person=abc")
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Regalo Luis 2", "Regalo Luis 1", "Regalo Ana"],
+        )
+
+    def test_all_persons_only_those_with_gifts(self):
+        context = self._query()
+        self.assertEqual(
+            [person.name for person in context["all_persons"]],
+            ["Ana", "Luis"],
+        )
