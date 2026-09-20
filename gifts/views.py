@@ -5,6 +5,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.views import generic
+from django.db.models.functions import Lower
 
 from .models import Gift, Person
 
@@ -49,7 +50,7 @@ class IndexView(generic.ListView):
         selected_ids = self._selected_person_ids()
         context["current_status"] = self.request.GET.get("status", "")
         context["current_person_ids"] = selected_ids
-        context["all_persons"] = Person.objects.filter(gift__isnull=False).distinct().order_by("name")
+        context["all_persons"] = Person.objects.filter(gift__isnull=False).distinct().order_by(Lower("name"))
         context["person_qs"] = "&".join("person={}".format(pid) for pid in selected_ids)
         return context
 

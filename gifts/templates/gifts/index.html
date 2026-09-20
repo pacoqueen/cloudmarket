@@ -4,75 +4,94 @@
 
 <section class="gift-list">
   <h1 class="gift-list__title">Regalos</h1>
-  <nav class="filter-bar" aria-label="Filtrar regalos">
-    <a class="filter-link{% if current_status == '' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}{% if person_qs %}?{{ person_qs }}{% endif %}">Todos</a>
-    <a class="filter-link{% if current_status == 'pending' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}?status=pending{% if person_qs %}&{{ person_qs }}{% endif %}">Pendientes</a>
-    <a class="filter-link{% if current_status == 'done' %} filter-link--active{% endif %}"
-       href="{% url 'gifts:index' %}?status=done{% if person_qs %}&{{ person_qs }}{% endif %}">Regalados</a>
-  </nav>
-  {% if all_persons %}
-    <form class="person-filter" method="get" action="{% url 'gifts:index' %}">
-      <fieldset class="person-filter__fieldset">
-        <legend class="person-filter__title">Destinatarios</legend>
-        {% if current_status %}
-          <input type="hidden" name="status" value="{{ current_status }}" />
-        {% endif %}
-        {% for person in all_persons %}
-          <label class="person-pill{% if person.id in current_person_ids %} person-pill--active{% endif %}">
-            <input type="checkbox" name="person" value="{{ person.id }}"
-                   {% if person.id in current_person_ids %}checked{% endif %} />
-            {{ person.name }}
-          </label>
+  <div class="gift-list__layout">
+    <aside class="filter-sidebar" aria-label="Filtros">
+      <div class="filter-sidebar__block">
+        <h2 class="filter-sidebar__heading">Estado</h2>
+        <nav class="filter-bar" aria-label="Filtrar por estado">
+          <a class="filter-link{% if current_status == '' %} filter-link--active{% endif %}"
+             href="{% url 'gifts:index' %}{% if person_qs %}?{{ person_qs }}{% endif %}">Todos</a>
+          <a class="filter-link{% if current_status == 'pending' %} filter-link--active{% endif %}"
+             href="{% url 'gifts:index' %}?status=pending{% if person_qs %}&{{ person_qs }}{% endif %}">Pendientes</a>
+          <a class="filter-link{% if current_status == 'done' %} filter-link--active{% endif %}"
+             href="{% url 'gifts:index' %}?status=done{% if person_qs %}&{{ person_qs }}{% endif %}">Regalados</a>
+        </nav>
+      </div>
+      {% if all_persons %}
+        <div class="filter-sidebar__block">
+          <h2 class="filter-sidebar__heading">Destinatarios</h2>
+          <input class="filter-search__input" id="person-filter-search" type="search"
+                 placeholder="Buscar destinatario…" aria-label="Buscar destinatario"
+                 autocomplete="off" />
+          <form class="person-filter" id="person-filter-form" method="get" action="{% url 'gifts:index' %}">
+            <fieldset class="person-filter__fieldset">
+              <legend class="visually-hidden">Filtrar por destinatario</legend>
+              {% if current_status %}
+                <input type="hidden" name="status" value="{{ current_status }}" />
+              {% endif %}
+              {% for person in all_persons %}
+                <label class="person-pill{% if person.id in current_person_ids %} person-pill--active{% endif %}">
+                  <input type="checkbox" name="person" value="{{ person.id }}"
+                         {% if person.id in current_person_ids %}checked{% endif %} />
+                  {{ person.name }}
+                </label>
+              {% endfor %}
+              <p class="person-filter__empty" id="person-filter-empty" hidden>Sin coincidencias.</p>
+              <button class="filter-link filter-link--submit" type="submit">Aplicar</button>
+            </fieldset>
+          </form>
+        </div>
+      {% endif %}
+    </aside>
+    <div class="gift-content">
+      {% if gift_list %}
+        <p class="gift-list__subtitle">{{ gift_list|length }} regalo{{ gift_list|length|pluralize }} para {{ person_groups|length }} persona{{ person_groups|length|pluralize }}</p>
+      {% endif %}
+      {% for group in person_groups %}
+        <h2 class="person-group__title">{{ group.person.name }}</h2>
+        <ul class="gift-grid">
+        {% for gift in group.gifts %}
+          <li class="gift-card">
+            <a class="gift-card__link" href="{% url 'gifts:detail' gift.id %}">
+              <span class="gift-card__top">
+                <span class="gift-card__title">
+                  <span class="gift-card__item">{{ gift.item }}</span>
+                </span>
+                {% if gift.item.preview_url %}
+                  <img class="gift-card__preview" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+                {% endif %}
+                {% if gift.done %}
+                  <span class="status-badge status-badge--ok" aria-label="Regalado">✔</span>
+                {% else %}
+                  <span class="status-badge status-badge--ko" aria-label="Pendiente">✘</span>
+                {% endif %}
+              </span>
+              <span class="gift-card__footer">
+                <span class="gift-card__chip gift-card__chip--date">{{ gift.date }}</span>
+                {% if gift.price %}
+                  <span class="gift-card__chip gift-card__chip--price">{{ gift.price }} €</span>
+                {% endif %}
+              </span>
+            </a>
+            {% if gift.item.url %}
+              <a class="gift-card__article" href="{{ gift.item.url }}" target="_blank" rel="noopener noreferrer">
+                {% if gift.item.preview_url %}
+                  <img class="gift-card__article-ico" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+                {% endif %}
+                Ver artículo en {{ gift.item.url_host }} ↗
+              </a>
+            {% endif %}
+          </li>
         {% endfor %}
-        <button class="filter-link" type="submit">Aplicar</button>
-      </fieldset>
-    </form>
-  {% endif %}
-  {% if gift_list %}
-    <p class="gift-list__subtitle">{{ gift_list|length }} regalo{{ gift_list|length|pluralize }} para {{ person_groups|length }} persona{{ person_groups|length|pluralize }}</p>
-  {% endif %}
-  {% for group in person_groups %}
-    <h2 class="person-group__title">{{ group.person.name }}</h2>
-    <ul class="gift-grid">
-    {% for gift in group.gifts %}
-      <li class="gift-card">
-        <a class="gift-card__link" href="{% url 'gifts:detail' gift.id %}">
-          <span class="gift-card__top">
-            <span class="gift-card__title">
-              <span class="gift-card__item">{{ gift.item }}</span>
-            </span>
-            {% if gift.item.preview_url %}
-              <img class="gift-card__preview" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
-            {% endif %}
-            {% if gift.done %}
-              <span class="status-badge status-badge--ok" aria-label="Regalado">✔</span>
-            {% else %}
-              <span class="status-badge status-badge--ko" aria-label="Pendiente">✘</span>
-            {% endif %}
-          </span>
-          <span class="gift-card__footer">
-            <span class="gift-card__chip gift-card__chip--date">{{ gift.date }}</span>
-            {% if gift.price %}
-              <span class="gift-card__chip gift-card__chip--price">{{ gift.price }} €</span>
-            {% endif %}
-          </span>
-        </a>
-        {% if gift.item.url %}
-          <a class="gift-card__article" href="{{ gift.item.url }}" target="_blank" rel="noopener noreferrer">
-            {% if gift.item.preview_url %}
-              <img class="gift-card__article-ico" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
-            {% endif %}
-            Ver artículo en {{ gift.item.url_host }} ↗
-          </a>
-        {% endif %}
-      </li>
-    {% endfor %}
-    </ul>
-  {% empty %}
-    <ul class="gift-grid">
-      <li class="gift-list__empty">No se encontraron regalos.</li>
-    </ul>
-  {% endfor %}
+        </ul>
+      {% endfor %}
+      {% if not gift_list %}
+        <ul class="gift-grid">
+          <li class="gift-list__empty">No se encontraron regalos.</li>
+        </ul>
+      {% endif %}
+    </div>
+  </div>
 </section>
+
+<script src="{% static 'gifts/filter.js' %}"></script>
