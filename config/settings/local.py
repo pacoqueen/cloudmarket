@@ -73,5 +73,5 @@ TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 # Your local stuff: Below this line define 3rd party library settings
 # ------------------------------------------------------------------------------
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['dev.cloudmarket.es, cloudmarket.es'])
+ALLOWED_HOSTS = ('192.168.122.218', )
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

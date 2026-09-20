@@ -108,7 +108,7 @@ MANAGERS = ADMINS
 # ------------------------------------------------------------------------------
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='postgres:///cloudmarket'),
+    'default': env.db('DATABASE_URL', default='postgres://cloudmarket:"p]tD[<\WOdA@localhost:5432/cloudmarket'),
 }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
