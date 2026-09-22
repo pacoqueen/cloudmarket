@@ -38,8 +38,10 @@ INSTALLED_APPS += ('raven.contrib.django.raven_compat', )
 WHITENOISE_MIDDLEWARE = ('whitenoise.middleware.WhiteNoiseMiddleware', )
 MIDDLEWARE = WHITENOISE_MIDDLEWARE + MIDDLEWARE
 RAVEN_MIDDLEWARE = ('raven.contrib.django.raven_compat.middleware.SentryResponseErrorIdMiddleware', )
-MIDDLEWARE = RAVEN_MIDDLEWARE + MIDDLEWARE
+ACCOUNT_MIDDLEWARE = ('allauth.account.middleware.AccountMiddleware', )
+MIDDLEWARE = ACCOUNT_MIDDLEWARE + RAVEN_MIDDLEWARE + MIDDLEWARE
 
+INTERNAL_IPS = ["127.0.0.1", "192.168.1.105"]
 
 # SECURITY CONFIGURATION
 # ------------------------------------------------------------------------------
@@ -58,6 +60,12 @@ SESSION_COOKIE_HTTPONLY = True
 SECURE_SSL_REDIRECT = env.bool('DJANGO_SECURE_SSL_REDIRECT', default=True)
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
+CSRF_TRUSTED_ORIGINS = [
+    'https://cloudmarket.es',
+    'http://cloudmarket.es',
+    'https://192.168.1.105',
+    'http://192.168.1.105',
+                        ]
 X_FRAME_OPTIONS = 'DENY'
 
 # SITE CONFIGURATION
