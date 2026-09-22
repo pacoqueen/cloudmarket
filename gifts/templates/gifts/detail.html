@@ -1,7 +1,14 @@
+{% extends "base.html" %}
 {% load static %}
 
-<link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% block title %}{{ gift }} · {{ block.super }}{% endblock %}
 
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% endblock css %}
+
+{% block content %}
 <section class="gift-detail">
   <div class="gift-detail__card">
     <h1 class="gift-detail__heading">{{ gift }}</h1>
@@ -33,5 +40,9 @@
     {% endif %}
   </div>
 </section>
+{% endblock content %}
 
-<script src="{% static 'gifts/detail.js' %}"></script>
+{% block javascript %}
+  {{ block.super }}
+  <script src="{% static 'gifts/detail.js' %}"></script>
+{% endblock javascript %}
