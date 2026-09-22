@@ -14,9 +14,24 @@
         {% csrf_token %}
         <label class="toggle" for="donebox">
             <input type="checkbox" name="done" id="donebox"{% if gift.done %} checked="checked" {% endif %} />
-            {{ gift.done|yesno:"Entregado,Pendiente" }}
+            <span class="toggle__label">{{ gift.done|yesno:"Ya regalado,Pendiente" }}</span>
         </label>
         <input class="mark-form__submit" type="submit" value="Guardar" />
     </form>
+
+    {% if user.is_authenticated %}
+      <p class="gift-detail__hint">Marca el regalo como público (lo ve cualquiera) o privado (solo usuarios registrados):</p>
+
+      <form class="mark-form" action="{% url 'gifts:set_public' gift.id %}" method="post">
+          {% csrf_token %}
+          <label class="toggle" for="is_publicbox">
+              <input type="checkbox" name="is_public" id="is_publicbox"{% if gift.is_public %} checked="checked" {% endif %} />
+              <span class="toggle__label">{{ gift.is_public|yesno:"Público,Privado" }}</span>
+          </label>
+          <input class="mark-form__submit" type="submit" value="Guardar" />
+      </form>
+    {% endif %}
   </div>
 </section>
+
+<script src="{% static 'gifts/detail.js' %}"></script>

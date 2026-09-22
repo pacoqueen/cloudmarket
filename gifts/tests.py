@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 # Create your tests here.
 
@@ -126,6 +129,9 @@ class ProductImageTests(TestCase):
 
 class IndexViewGroupingTests(TestCase):
 
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
+
     def test_gifts_grouped_by_person(self):
         persona_ana = Person.objects.create(name="Ana")
         persona_luis = Person.objects.create(name="Luis")
@@ -138,6 +144,7 @@ class IndexViewGroupingTests(TestCase):
 
         view = IndexView()
         view.request = RequestFactory().get("/gifts/")
+        view.request.user = self.user
         view.object_list = view.get_queryset()
         context = view.get_context_data()
 
@@ -156,6 +163,7 @@ class IndexViewGroupingTests(TestCase):
 class IndexViewFilterTests(TestCase):
 
     def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
         self.persona = Person.objects.create(name="Ana")
         item_given = Item.objects.create(description="Entregado", url="")
         item_pending = Item.objects.create(description="Pendiente", url="")
@@ -168,6 +176,7 @@ class IndexViewFilterTests(TestCase):
             url = "{}?status={}".format(url, status)
         view = IndexView()
         view.request = RequestFactory().get(url)
+        view.request.user = self.user
         view.object_list = view.get_queryset()
         return view.get_context_data()
 
@@ -191,6 +200,7 @@ class IndexViewFilterTests(TestCase):
 class IndexViewPersonFilterTests(TestCase):
 
     def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
         self.ana = Person.objects.create(name="Ana")
         self.luis = Person.objects.create(name="Luis")
         self.sin_regalos = Person.objects.create(name="Sin Regalos")
@@ -207,6 +217,7 @@ class IndexViewPersonFilterTests(TestCase):
             url = "{}?{}".format(url, query_string)
         view = IndexView()
         view.request = RequestFactory().get(url)
+        view.request.user = self.user
         view.object_list = view.get_queryset()
         return view.get_context_data()
 
@@ -258,3 +269,112 @@ class IndexViewPersonFilterTests(TestCase):
             [person.name for person in context["all_persons"]],
             ["Ana", "Luis"],
         )
+
+
+class IndexViewVisibilityTests(TestCase):
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
+        self.ana = Person.objects.create(name="Ana")
+        self.luis = Person.objects.create(name="Luis")
+        item_public = Item.objects.create(description="Publico", url="")
+        item_private = Item.objects.create(description="Privado", url="")
+        self.gift_public = Gift.objects.create(
+            person=self.ana, item=item_public, date="2026-01-01", price=10.0, is_public=True,
+        )
+        self.gift_private = Gift.objects.create(
+            person=self.luis, item=item_private, date="2026-02-01", price=20.0, is_public=False,
+        )
+
+    def _context(self, user):
+        view = IndexView()
+        view.request = RequestFactory().get("/gifts/")
+        view.request.user = user
+        view.object_list = view.get_queryset()
+        return view.get_context_data()
+
+    def test_anonymous_sees_only_public_gifts(self):
+        context = self._context(AnonymousUser())
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Publico"],
+        )
+
+    def test_anonymous_all_persons_excludes_private_only_person(self):
+        context = self._context(AnonymousUser())
+        self.assertEqual(
+            [person.name for person in context["all_persons"]],
+            ["Ana"],
+        )
+
+    def test_authed_sees_public_and_private(self):
+        context = self._context(self.user)
+        self.assertEqual(
+            [gift.item.description for gift in context["gift_list"]],
+            ["Privado", "Publico"],
+        )
+
+    def test_authed_all_persons_includes_private_only_person(self):
+        context = self._context(self.user)
+        self.assertEqual(
+            [person.name for person in context["all_persons"]],
+            ["Ana", "Luis"],
+        )
+
+    def test_anonymous_detail_of_private_gift_is_404(self):
+        response = self.client.get(reverse("gifts:detail", args=[self.gift_private.id]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_anonymous_detail_of_public_gift_is_200(self):
+        response = self.client.get(reverse("gifts:detail", args=[self.gift_public.id]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_anonymous_mark_private_gift_is_404(self):
+        response = self.client.post(reverse("gifts:mark", args=[self.gift_private.id]), {"done": "on"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_anonymous_mark_public_gift_redirects(self):
+        response = self.client.post(reverse("gifts:mark", args=[self.gift_public.id]), {"done": "on"})
+        self.assertRedirects(response, reverse("gifts:index"))
+
+    def test_authed_detail_private_is_200(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("gifts:detail", args=[self.gift_private.id]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_authed_mark_private_gift_redirects(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("gifts:mark", args=[self.gift_private.id]), {"done": "on"})
+        self.assertRedirects(response, reverse("gifts:index"))
+
+    def test_anonymous_set_public_redirects_to_login(self):
+        response = self.client.post(
+            reverse("gifts:set_public", args=[self.gift_private.id]), {"is_public": "on"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_set_public_get_is_rejected(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("gifts:set_public", args=[self.gift_private.id]))
+        self.assertEqual(response.status_code, 405)
+
+    def test_authed_set_public_marks_gift_public(self):
+        self.client.force_login(self.user)
+        self.gift_private.refresh_from_db()
+        self.assertFalse(self.gift_private.is_public)
+        response = self.client.post(
+            reverse("gifts:set_public", args=[self.gift_private.id]), {"is_public": "on"},
+        )
+        self.assertRedirects(response, reverse("gifts:detail", args=[self.gift_private.id]))
+        self.gift_private.refresh_from_db()
+        self.assertTrue(self.gift_private.is_public)
+
+    def test_authed_set_public_marks_gift_private(self):
+        self.client.force_login(self.user)
+        self.gift_public.refresh_from_db()
+        self.assertTrue(self.gift_public.is_public)
+        response = self.client.post(reverse("gifts:set_public", args=[self.gift_public.id]))
+        self.assertRedirects(response, reverse("gifts:detail", args=[self.gift_public.id]))
+        self.gift_public.refresh_from_db()
+        self.assertFalse(self.gift_public.is_public)

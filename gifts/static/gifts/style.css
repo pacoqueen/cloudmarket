@@ -79,6 +79,21 @@ body::after {
     font-size: 0.95rem;
 }
 
+.gift-list__note {
+    margin: -0.75rem 0 1.75rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
+    background: var(--teal-soft);
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.gift-list__note a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
 /* Sidebar filters */
 
 .filter-sidebar {

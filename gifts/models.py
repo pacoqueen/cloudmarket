@@ -53,6 +53,7 @@ class Gift(models.Model):
     date = models.DateField()
     done = models.BooleanField(default=False)
     price = models.FloatField(default=None, blank=True)
+    is_public = models.BooleanField(default=False, help_text="Visible para visitantes no registrados.")
 
     def __str__(self):
         return self.item.description + " → " + self.person.name

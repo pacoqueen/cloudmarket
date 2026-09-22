@@ -4,6 +4,9 @@
 
 <section class="gift-list">
   <h1 class="gift-list__title">Regalos</h1>
+  {% if not user.is_authenticated %}
+    <p class="gift-list__note">Viendo solo regalos públicos. <a href="{% url 'account_login' %}">Inicia sesión</a> para ver todos.</p>
+  {% endif %}
   <div class="gift-list__layout">
     <aside class="filter-sidebar" aria-label="Filtros">
       <div class="filter-sidebar__block">

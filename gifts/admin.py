@@ -45,9 +45,9 @@ class GiftInline(admin.StackedInline):
 
 
 class GiftAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'date', 'price', 'done')
-    list_filter = ('date', 'price')
-    fields = ['person', 'item', 'date', 'price', 'done']
+    list_display = ('__str__', 'date', 'price', 'done', 'is_public')
+    list_filter = ('date', 'price', 'is_public')
+    fields = ['person', 'item', 'date', 'price', 'done', 'is_public']
 
 
 class PersonAdmin(admin.ModelAdmin):
