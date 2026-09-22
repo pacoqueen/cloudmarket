@@ -11,4 +11,6 @@ urlpatterns = [# por ejemplo: /gifts/
                re_path(r'^(?P<pk>[0-9]+)/$', views.DetailView.as_view(), name = "detail"),
                # por ejemplo: /gifts/5/mark
                re_path(r'^(?P<gift_id>[0-9]+)/mark/$', views.mark, name = "mark"),
+               # por ejemplo: /gifts/5/set_public
+               re_path(r'^(?P<gift_id>[0-9]+)/set_public/$', views.set_public, name = "set_public"),
               ]
