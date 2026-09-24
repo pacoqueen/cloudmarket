@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.views import generic
 from django.views.decorators.http import require_POST, require_http_methods
 
-from .forms import GiftCreateForm
+from .forms import GiftCreateForm, GiftEditForm
 from .models import Gift, Item, Person
 from .services import fetch_product_metadata
 
@@ -161,6 +161,62 @@ def bookmarklet(request):
         "gifts/bookmarklet.html",
         {"bookmarklet_url": bookmarklet_url, "add_url": add_url},
     )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit(request, gift_id):
+    """Edita los datos del artículo y del regalo seleccionado."""
+    gift = get_object_or_404(
+        Gift.objects.select_related("item", "person"),
+        pk=gift_id,
+    )
+
+    if request.method == "POST":
+        form = GiftEditForm(request.POST, request.FILES)
+        if form.is_valid():
+            data = form.cleaned_data
+            with transaction.atomic():
+                item = gift.item
+                old_photo = item.photo
+                item.description = data["description"]
+                item.url = data["url"]
+                item.notes = data["notes"]
+                item.image_url = data["image_url"]
+                if data["remove_photo"]:
+                    if old_photo:
+                        old_photo.delete(save=False)
+                    item.photo = None
+                elif data["photo"]:
+                    item.photo = data["photo"]
+                item.save()
+
+                gift.person = data["person"]
+                gift.date = data["date"]
+                gift.price = data["price"]
+                gift.done = data["done"]
+                gift.is_public = data["is_public"]
+                gift.save()
+
+            messages.success(request, "Regalo actualizado correctamente.")
+            return HttpResponseRedirect(reverse("gifts:detail", args=[gift.pk]))
+    else:
+        item = gift.item
+        form = GiftEditForm(
+            initial={
+                "description": item.description,
+                "url": item.url,
+                "notes": item.notes,
+                "image_url": item.image_url,
+                "person": gift.person_id,
+                "date": gift.date,
+                "price": gift.price,
+                "done": gift.done,
+                "is_public": gift.is_public,
+            }
+        )
+
+    return render(request, "gifts/edit.html", {"form": form, "gift": gift})
 
 
 class IndexView(generic.ListView):

@@ -9,14 +9,15 @@ from .models import Person
 PUBLIC_URL_VALIDATOR = URLValidator(schemes=["http", "https"])
 
 
-class GiftCreateForm(forms.Form):
-    """Formulario para crear un regalo a partir de una URL de producto."""
+class GiftFormBase(forms.Form):
+    """Campos comunes para crear y editar un regalo."""
 
     url = forms.URLField(
         label="URL del artículo",
         max_length=2000,
+        required=False,
         validators=[PUBLIC_URL_VALIDATOR],
-        help_text="Pega aquí la dirección de la página del producto.",
+        help_text="URL de la página del producto.",
     )
     person = forms.ModelChoiceField(
         label="Destinatario",
@@ -31,7 +32,7 @@ class GiftCreateForm(forms.Form):
     description = forms.CharField(
         label="Descripción",
         max_length=256,
-        help_text="Se ha intentado completar automáticamente desde la página del producto.",
+        help_text="Descripción del artículo.",
     )
     price = forms.FloatField(
         label="Precio (€)",
@@ -43,7 +44,7 @@ class GiftCreateForm(forms.Form):
         label="URL de la imagen",
         required=False,
         validators=[PUBLIC_URL_VALIDATOR],
-        help_text="Se ha intentado detectar automáticamente; puedes corregirla.",
+        help_text="URL de la imagen del producto.",
     )
     notes = forms.CharField(
         label="Notas",
@@ -62,3 +63,25 @@ class GiftCreateForm(forms.Form):
             kwargs["initial"] = initial
         initial.setdefault("date", timezone.localdate())
         super().__init__(*args, **kwargs)
+
+
+class GiftCreateForm(GiftFormBase):
+    """Formulario para crear un regalo a partir de una URL de producto."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["url"].required = True
+
+
+class GiftEditForm(GiftFormBase):
+    """Formulario para editar todos los datos de un regalo y su artículo."""
+
+    photo = forms.ImageField(
+        label="Foto subida",
+        required=False,
+    )
+    done = forms.BooleanField(label="Ya regalado", required=False)
+    remove_photo = forms.BooleanField(
+        label="Eliminar la foto subida",
+        required=False,
+    )

@@ -11,7 +11,14 @@
 {% block content %}
 <section class="gift-detail">
   <div class="gift-detail__card">
-    <h1 class="gift-detail__heading">{{ gift }}</h1>
+    <h1 class="gift-detail__heading">
+      {% if user.is_authenticated %}
+        <a class="gift-detail__description-link" href="{% url 'gifts:edit' gift.id %}">{{ gift.item.description }}</a>
+      {% else %}
+        {{ gift.item.description }}
+      {% endif %}
+      <span class="gift-detail__recipient">→ {{ gift.person.name }}</span>
+    </h1>
 
     {% if error_message %}<p class="gift-detail__error"><strong>{{ error_message }}</strong></p>{% endif %}
 

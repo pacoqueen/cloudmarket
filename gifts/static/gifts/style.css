@@ -893,6 +893,25 @@ body::after {
     color: var(--ink);
 }
 
+.gift-detail__description-link {
+    color: var(--teal-dark);
+    text-decoration: underline;
+    text-decoration-color: var(--teal-soft);
+    text-decoration-thickness: 3px;
+    text-underline-offset: 4px;
+}
+
+.gift-detail__description-link:hover,
+.gift-detail__description-link:focus-visible {
+    color: var(--teal);
+    text-decoration-color: var(--teal);
+}
+
+.gift-detail__recipient {
+    color: var(--muted);
+    font-weight: 600;
+}
+
 .gift-detail__hint {
     margin: 0 0 1rem;
     color: var(--muted);

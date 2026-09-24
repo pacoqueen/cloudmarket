@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar regalo · {{ block.super }}{% endblock %}
+
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% endblock css %}
+
+{% block content %}
+<section class="gift-add">
+  <div class="gift-add__card">
+    <header class="gift-add__header">
+      <div>
+        <h1 class="gift-add__heading">Editar regalo</h1>
+        <p class="gift-add__intro">Modifica los datos del artículo y del regalo.</p>
+      </div>
+      <a class="gift-add__bookmarklet-link" href="{% url 'gifts:detail' gift.id %}">Volver al regalo</a>
+    </header>
+
+    <form class="gift-add__form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      <fieldset class="gift-add__fieldset">
+        <legend class="gift-add__legend">Artículo</legend>
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+          {{ form.description }}
+          {{ form.description.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.url.id_for_label }}">{{ form.url.label }}</label>
+          {{ form.url }}
+          {{ form.url.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.image_url.id_for_label }}">{{ form.image_url.label }}</label>
+          {{ form.image_url }}
+          {{ form.image_url.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.photo.id_for_label }}">{{ form.photo.label }}</label>
+          {{ form.photo }}
+          {{ form.photo.errors }}
+        </div>
+        {% if gift.item.photo %}
+          <div class="gift-add__preview gift-add__field--wide">
+            <img src="{{ gift.item.photo.url }}" alt="Foto actual del producto" />
+            <label class="gift-add__checkbox" for="{{ form.remove_photo.id_for_label }}">
+              {{ form.remove_photo }}
+              <span>{{ form.remove_photo.label }}</span>
+            </label>
+          </div>
+        {% endif %}
+      </fieldset>
+
+      <fieldset class="gift-add__fieldset">
+        <legend class="gift-add__legend">Regalo</legend>
+        <div class="gift-add__field">
+          <label for="{{ form.person.id_for_label }}">{{ form.person.label }}</label>
+          {{ form.person }}
+          {{ form.person.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.date.id_for_label }}">{{ form.date.label }}</label>
+          {{ form.date }}
+          {{ form.date.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.price.id_for_label }}">{{ form.price.label }}</label>
+          {{ form.price }}
+          {{ form.price.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label class="gift-add__checkbox" for="{{ form.done.id_for_label }}">
+            {{ form.done }}
+            <span>{{ form.done.label }}</span>
+          </label>
+          {{ form.done.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label class="gift-add__checkbox" for="{{ form.is_public.id_for_label }}">
+            {{ form.is_public }}
+            <span>{{ form.is_public.label }}</span>
+          </label>
+          {{ form.is_public.errors }}
+        </div>
+      </fieldset>
+
+      <div class="gift-add__actions">
+        <a class="gift-add__cancel" href="{% url 'gifts:detail' gift.id %}">Cancelar</a>
+        <button class="gift-add__submit" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock content %}

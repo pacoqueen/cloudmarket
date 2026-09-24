@@ -635,3 +635,94 @@ class AddGiftViewTests(TestCase):
         self.assertContains(response, "Añadir a Cloudmarket")
         self.assertTrue(response.context["bookmarklet_url"].startswith("javascript:"))
         self.assertIn("/gifts/add/", response.context["bookmarklet_url"])
+
+
+class GiftEditViewTests(TestCase):
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
+        self.person = Person.objects.create(name="Ana")
+        self.other_person = Person.objects.create(name="Luis")
+        self.item = Item.objects.create(
+            description="Artículo original",
+            url="https://shop.example.com/products/1",
+            notes="Nota original",
+            image_url="https://cdn.example.com/original.jpg",
+        )
+        self.gift = Gift.objects.create(
+            person=self.person,
+            item=self.item,
+            date="2026-12-24",
+            price=19.99,
+        )
+
+    def test_edit_requires_login(self):
+        response = self.client.get(reverse("gifts:edit", args=[self.gift.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    def test_edit_prefills_item_and_gift_attributes(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:edit", args=[self.gift.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertEqual(form.initial["description"], self.item.description)
+        self.assertEqual(form.initial["url"], self.item.url)
+        self.assertEqual(form.initial["notes"], self.item.notes)
+        self.assertEqual(form.initial["image_url"], self.item.image_url)
+        self.assertEqual(form.initial["person"], self.person.pk)
+        self.assertEqual(form.initial["date"].isoformat(), "2026-12-24")
+        self.assertEqual(form.initial["price"], self.gift.price)
+
+    def test_edit_updates_item_and_gift_attributes(self):
+        self.client.force_login(self.user)
+        data = {
+            "description": "Artículo actualizado",
+            "url": "https://shop.example.com/products/2",
+            "notes": "Nota actualizada",
+            "image_url": "https://cdn.example.com/updated.jpg",
+            "person": self.other_person.pk,
+            "date": "2026-12-31",
+            "price": "29.95",
+            "done": "on",
+            "is_public": "on",
+        }
+
+        response = self.client.post(reverse("gifts:edit", args=[self.gift.pk]), data)
+
+        self.assertRedirects(
+            response,
+            reverse("gifts:detail", args=[self.gift.pk]),
+            fetch_redirect_response=False,
+        )
+        self.item.refresh_from_db()
+        self.gift.refresh_from_db()
+        self.assertEqual(self.item.description, "Artículo actualizado")
+        self.assertEqual(self.item.url, "https://shop.example.com/products/2")
+        self.assertEqual(self.item.notes, "Nota actualizada")
+        self.assertEqual(self.item.image_url, "https://cdn.example.com/updated.jpg")
+        self.assertEqual(self.gift.person, self.other_person)
+        self.assertEqual(self.gift.date.isoformat(), "2026-12-31")
+        self.assertEqual(self.gift.price, 29.95)
+        self.assertTrue(self.gift.done)
+        self.assertTrue(self.gift.is_public)
+
+    def test_detail_shows_description_edit_link_only_to_authenticated_users(self):
+        self.gift.is_public = True
+        self.gift.save(update_fields=["is_public"])
+
+        anonymous_response = self.client.get(reverse("gifts:detail", args=[self.gift.pk]))
+        self.assertNotContains(anonymous_response, "gift-detail__description-link")
+        self.assertNotContains(anonymous_response, reverse("gifts:edit", args=[self.gift.pk]))
+
+        self.client.force_login(self.user)
+        authenticated_response = self.client.get(reverse("gifts:detail", args=[self.gift.pk]))
+        self.assertContains(authenticated_response, "gift-detail__description-link")
+        self.assertContains(authenticated_response, self.item.description)
+        self.assertContains(
+            authenticated_response,
+            reverse("gifts:edit", args=[self.gift.pk]),
+        )
