@@ -6,7 +6,7 @@ from django.db import models
 
 class Item(models.Model):
     description = models.CharField(max_length = 256)
-    url = models.URLField(blank = True)
+    url = models.URLField(blank=True, max_length=2000)
     notes = models.TextField(blank = True)
     photo = models.ImageField(upload_to = "img", blank = True)
     image_url = models.URLField(blank = True, help_text = "Foto del producto obtenida de la página de compra.")
@@ -52,7 +52,7 @@ class Gift(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
     date = models.DateField()
     done = models.BooleanField(default=False)
-    price = models.FloatField(default=None, blank=True)
+    price = models.FloatField(default=None, blank=True, null=True)
     is_public = models.BooleanField(default=False, help_text="Visible para visitantes no registrados.")
 
     def __str__(self):

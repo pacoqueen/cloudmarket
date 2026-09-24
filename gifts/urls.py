@@ -7,6 +7,8 @@ from . import views
 app_name = 'gifts'
 urlpatterns = [# por ejemplo: /gifts/
                re_path(r'^$', views.IndexView.as_view(), name = "index"),
+               re_path(r'^add/$', views.add, name = "add"),
+               re_path(r'^bookmarklet/$', views.bookmarklet, name = "bookmarklet"),
                # por ejemplo: /gifts/5
                re_path(r'^(?P<pk>[0-9]+)/$', views.DetailView.as_view(), name = "detail"),
                # por ejemplo: /gifts/5/mark

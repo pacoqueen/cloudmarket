@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Añadir regalo · {{ block.super }}{% endblock %}
+
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% endblock css %}
+
+{% block content %}
+<section class="gift-add">
+  <div class="gift-add__card">
+    <header class="gift-add__header">
+      <div>
+        <h1 class="gift-add__heading">Añadir regalo</h1>
+        <p class="gift-add__intro">Pega la URL de un producto y completa los datos importantes.</p>
+      </div>
+      <a class="gift-add__bookmarklet-link" href="{% url 'gifts:bookmarklet' %}">
+        ¿Cómo usar el bookmarklet?
+      </a>
+    </header>
+
+    {% if metadata_notice %}
+      <p class="gift-add__notice" role="status">{{ metadata_notice }}</p>
+    {% endif %}
+
+    <form class="gift-add__form" method="post" action="{% url 'gifts:add' %}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      <fieldset class="gift-add__fieldset">
+        <legend class="gift-add__legend">Artículo</legend>
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.url.id_for_label }}">{{ form.url.label }}</label>
+          <div class="gift-add__url-row">
+            {{ form.url }}
+            <button class="gift-add__analyze" type="submit" name="analyze" value="1" formnovalidate>
+              Analizar URL
+            </button>
+          </div>
+          {% if form.url.help_text %}<small class="gift-add__help">{{ form.url.help_text }}</small>{% endif %}
+          {{ form.url.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+          {{ form.description }}
+          {% if form.description.help_text %}<small class="gift-add__help">{{ form.description.help_text }}</small>{% endif %}
+          {{ form.description.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.price.id_for_label }}">{{ form.price.label }}</label>
+          {{ form.price }}
+          {{ form.price.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.image_url.id_for_label }}">{{ form.image_url.label }}</label>
+          {{ form.image_url }}
+          {% if form.image_url.help_text %}<small class="gift-add__help">{{ form.image_url.help_text }}</small>{% endif %}
+          {{ form.image_url.errors }}
+        </div>
+        {% if form.image_url.value %}
+          <div class="gift-add__preview">
+            <img src="{{ form.image_url.value }}" alt="Previsualización del producto" />
+          </div>
+        {% endif %}
+        <div class="gift-add__field gift-add__field--wide">
+          <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+      </fieldset>
+
+      <fieldset class="gift-add__fieldset">
+        <legend class="gift-add__legend">Regalo</legend>
+        <div class="gift-add__field">
+          <label for="{{ form.person.id_for_label }}">{{ form.person.label }}</label>
+          {{ form.person }}
+          {% if form.person.help_text %}<small class="gift-add__help">{{ form.person.help_text }}</small>{% endif %}
+          {{ form.person.errors }}
+        </div>
+        <div class="gift-add__field">
+          <label for="{{ form.date.id_for_label }}">{{ form.date.label }}</label>
+          {{ form.date }}
+          {% if form.date.help_text %}<small class="gift-add__help">{{ form.date.help_text }}</small>{% endif %}
+          {{ form.date.errors }}
+        </div>
+        <div class="gift-add__field gift-add__field--wide">
+          <label class="gift-add__checkbox" for="{{ form.is_public.id_for_label }}">
+            {{ form.is_public }}
+            <span>{{ form.is_public.label }}</span>
+          </label>
+          {{ form.is_public.errors }}
+        </div>
+      </fieldset>
+
+      <div class="gift-add__actions">
+        <a class="gift-add__cancel" href="{% url 'gifts:index' %}">Cancelar</a>
+        <button class="gift-add__submit" type="submit">Guardar regalo</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock content %}

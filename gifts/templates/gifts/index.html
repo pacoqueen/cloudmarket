@@ -1,9 +1,24 @@
+{% extends "base.html" %}
 {% load static %}
 
-<link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% block title %}Regalos · {{ block.super }}{% endblock %}
 
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% endblock css %}
+
+{% block content %}
 <section class="gift-list">
-  <h1 class="gift-list__title">Regalos</h1>
+  <div class="gift-list__header">
+    <h1 class="gift-list__title">Regalos</h1>
+    {% if user.is_authenticated %}
+      <div class="gift-list__actions">
+        <a class="gift-list__add" href="{% url 'gifts:add' %}">+ Añadir regalo</a>
+        <a class="gift-list__bookmarklet" href="{% url 'gifts:bookmarklet' %}">Bookmarklet</a>
+      </div>
+    {% endif %}
+  </div>
   {% if not user.is_authenticated %}
     <p class="gift-list__note">Viendo solo regalos públicos. <a href="{% url 'account_login' %}">Inicia sesión</a> para ver todos.</p>
   {% endif %}
@@ -96,5 +111,9 @@
     </div>
   </div>
 </section>
+{% endblock content %}
 
-<script src="{% static 'gifts/filter.js' %}"></script>
+{% block javascript %}
+  {{ block.super }}
+  <script src="{% static 'gifts/filter.js' %}"></script>
+{% endblock javascript %}

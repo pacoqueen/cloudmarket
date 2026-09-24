@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bookmarklet · {{ block.super }}{% endblock %}
+
+{% block css %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+{% endblock css %}
+
+{% block content %}
+<section class="bookmarklet-page">
+  <div class="bookmarklet-page__card">
+    <p class="bookmarklet-page__eyebrow">Acceso rápido</p>
+    <h1 class="bookmarklet-page__heading">Añade artículos desde cualquier tienda</h1>
+    <p class="bookmarklet-page__intro">
+      Instala una vez este acceso directo y, cuando veas algo que quieras regalar,
+      solo tendrás que pulsarlo y elegir la persona y la fecha.
+    </p>
+
+    <ol class="bookmarklet-page__steps">
+      <li>Abre la barra de favoritos de tu navegador.</li>
+      <li>Arrastra el botón siguiente hasta esa barra.</li>
+      <li>En cualquier tienda, pulsa <strong>Añadir a Cloudmarket</strong>.</li>
+      <li>Se abrirá esta aplicación con los datos del artículo ya preparados.</li>
+    </ol>
+
+    <div class="bookmarklet-page__install">
+      <a class="bookmarklet-page__button" href="{{ bookmarklet_url }}">
+        + Añadir a Cloudmarket
+      </a>
+      <p class="bookmarklet-page__hint">
+        Si el navegador no permite arrastrar el enlace, cópialo y créalo como favorito manual.
+      </p>
+    </div>
+
+    <div class="bookmarklet-page__fallback">
+      <p>¿Prefieres pegar la URL?</p>
+      <a class="gift-add__bookmarklet-link" href="{% url 'gifts:add' %}">Abrir formulario de añadir regalo</a>
+    </div>
+  </div>
+</section>
+{% endblock content %}

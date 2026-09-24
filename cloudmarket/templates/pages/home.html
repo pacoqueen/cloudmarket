@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% if request.user.is_authenticated %}
-    <p>Hola holita, vecinito.</p>
-  {% else %}
-    <p>Who are you? Uh-uh-uh-uh</p>
-  {% endif %}
+  <section class="home-actions">
+    {% if request.user.is_authenticated %}
+      <p>Hola holita, vecinito.</p>
+      <p>¿Has visto algo que quieres regalar?</p>
+      <a class="home-actions__button" href="{% url 'gifts:add' %}">Añadir a mi lista de regalos</a>
+      <a class="home-actions__secondary" href="{% url 'gifts:bookmarklet' %}">Configurar acceso rápido</a>
+    {% else %}
+      <p>Who are you? Uh-uh-uh-uh</p>
+    {% endif %}
+  </section>
 {% endblock %}

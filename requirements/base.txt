@@ -11,6 +11,9 @@ django>=1.11.18
 django-environ>=0.4.1
 whitenoise>=3.3.0
 
+# HTTP client for product metadata
+requests>=2.31.0
+
 
 # Forms
 django-braces>=1.11.0

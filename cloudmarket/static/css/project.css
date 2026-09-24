@@ -36,3 +36,36 @@
 [hidden][style="display: block;"] {
   display: block !important;
 }
+
+.home-actions {
+  margin: 3rem auto;
+  max-width: 640px;
+  padding: 2rem;
+  border: 1px solid rgba(20, 108, 105, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 25px -8px rgba(20, 108, 105, 0.35);
+  text-align: center;
+}
+
+.home-actions p {
+  margin: 0 0 1rem;
+}
+
+.home-actions__button {
+  display: inline-flex;
+  margin: 0.35rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #146c69, #0e5250);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home-actions__secondary {
+  display: inline-block;
+  margin: 0.35rem;
+  color: #146c69;
+  font-weight: 700;
+}

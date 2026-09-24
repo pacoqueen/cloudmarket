@@ -1,15 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 # Create your tests here.
 
 from .models import Gift, Person, Item
-from .services import extract_product_image
+from .services import (
+    extract_product_image,
+    extract_product_metadata,
+    fetch_product_metadata,
+    parse_price,
+    validate_public_url,
+)
 from .views import IndexView
 
 
@@ -342,6 +351,13 @@ class IndexViewVisibilityTests(TestCase):
         response = self.client.get(reverse("gifts:detail", args=[self.gift_private.id]))
         self.assertEqual(response.status_code, 200)
 
+    def test_index_keeps_site_header_and_title(self):
+        response = self.client.get(reverse("gifts:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "cloudmarket.es")
+        self.assertContains(response, "Regalos")
+
     def test_authed_mark_private_gift_redirects(self):
         self.client.force_login(self.user)
         response = self.client.post(reverse("gifts:mark", args=[self.gift_private.id]), {"done": "on"})
@@ -378,3 +394,244 @@ class IndexViewVisibilityTests(TestCase):
         self.assertRedirects(response, reverse("gifts:detail", args=[self.gift_public.id]))
         self.gift_public.refresh_from_db()
         self.assertFalse(self.gift_public.is_public)
+
+
+class ProductMetadataTests(TestCase):
+
+    def test_extracts_json_ld_product_metadata(self):
+        html = """
+        <html>
+          <head>
+            <meta property="og:title" content="Título de la tienda">
+            <script type="application/ld+json">
+              {
+                "@context": "https://schema.org",
+                "@type": "Product",
+                "name": "Camiseta azul",
+                "description": "Camiseta de algodón",
+                "image": "/images/camiseta.jpg",
+                "offers": {"@type": "Offer", "price": "19,99 EUR"}
+              }
+            </script>
+          </head>
+        </html>
+        """
+
+        metadata = extract_product_metadata(html, "https://shop.example.com/products/1")
+
+        self.assertEqual(metadata["description"], "Camiseta de algodón")
+        self.assertEqual(metadata["price"], 19.99)
+        self.assertEqual(metadata["image_url"], "https://shop.example.com/images/camiseta.jpg")
+
+    def test_falls_back_to_open_graph_metadata(self):
+        html = """
+        <html>
+          <head>
+            <meta property="og:title" content="Artículo">
+            <meta property="og:description" content="Descripción del artículo">
+            <meta property="og:image" content="https://cdn.example.com/article.jpg">
+            <meta property="product:price:amount" content="24.50">
+          </head>
+        </html>
+        """
+
+        metadata = extract_product_metadata(html, "https://shop.example.com/products/1")
+
+        self.assertEqual(metadata["description"], "Descripción del artículo")
+        self.assertEqual(metadata["price"], 24.5)
+        self.assertEqual(metadata["image_url"], "https://cdn.example.com/article.jpg")
+
+    def test_parses_european_and_anglosaxon_prices(self):
+        self.assertEqual(parse_price("19,99 €"), 19.99)
+        self.assertEqual(parse_price("1.234,56 €"), 1234.56)
+        self.assertEqual(parse_price("$1,234.56"), 1234.56)
+        self.assertIsNone(parse_price("precio no disponible"))
+
+    def test_rejects_private_network_urls(self):
+        with self.assertRaises(ValueError):
+            validate_public_url("http://127.0.0.1:8000/product")
+
+    @patch("gifts.services._fetch_page")
+    def test_fetch_product_metadata_uses_final_url(self, fetch_page):
+        fetch_page.return_value = (
+            '<html><head><title>Producto</title></head></html>',
+            "https://shop.example.com/products/final",
+        )
+
+        metadata = fetch_product_metadata("https://shop.example.com/products/1")
+
+        self.assertEqual(metadata["url"], "https://shop.example.com/products/final")
+        self.assertEqual(metadata["description"], "Producto")
+        fetch_page.assert_called_once_with("https://shop.example.com/products/1")
+
+
+class AddGiftViewTests(TestCase):
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
+        self.person = Person.objects.create(name="Ana")
+
+    def test_add_requires_login(self):
+        response = self.client.get(reverse("gifts:add"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
+
+    @patch("gifts.views.fetch_product_metadata")
+    def test_get_prefills_metadata_and_current_date(self, fetch_metadata):
+        fetch_metadata.return_value = {
+            "url": "https://shop.example.com/products/1",
+            "description": "Regalo detectado",
+            "price": 19.99,
+            "image_url": "https://cdn.example.com/gift.jpg",
+        }
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("gifts:add"),
+            {"url": "https://shop.example.com/products/1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertEqual(form.initial["description"], "Regalo detectado")
+        self.assertEqual(form.initial["price"], 19.99)
+        self.assertEqual(form.initial["image_url"], "https://cdn.example.com/gift.jpg")
+        self.assertEqual(form.initial["date"], timezone.localdate())
+        fetch_metadata.assert_called_once_with("https://shop.example.com/products/1")
+
+    @patch("gifts.views.fetch_product_metadata", return_value={})
+    def test_get_explains_when_metadata_cannot_be_fetched(self, fetch_metadata):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("gifts:add"),
+            {"url": "https://shop.example.com/products/1"},
+        )
+
+        self.assertContains(response, "No se pudo obtener la información automáticamente")
+        fetch_metadata.assert_called_once()
+
+    @patch("gifts.views.fetch_product_metadata")
+    def test_analyze_button_prefills_form_without_creating_gift(self, fetch_metadata):
+        fetch_metadata.return_value = {
+            "url": "https://shop.example.com/products/final",
+            "description": "Descripción detectada",
+            "price": 19.99,
+            "image_url": "https://cdn.example.com/gift.jpg",
+        }
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("gifts:add"),
+            {
+                "url": "https://shop.example.com/products/1",
+                "date": "2026-12-24",
+                "description": "Descripción manual",
+                "analyze": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertFalse(form.is_bound)
+        self.assertEqual(form.initial["url"], "https://shop.example.com/products/final")
+        self.assertEqual(form.initial["description"], "Descripción detectada")
+        self.assertEqual(form.initial["price"], 19.99)
+        self.assertEqual(form.initial["date"], "2026-12-24")
+        self.assertEqual(Gift.objects.count(), 0)
+        self.assertContains(response, "Analizar URL")
+
+    @patch("gifts.views.fetch_product_metadata")
+    def test_analyze_preserves_long_product_urls(self, fetch_metadata):
+        long_url = "https://shop.example.com/products/1?" + "&".join(
+            "option_{}=value".format(index) for index in range(20)
+        )
+        fetch_metadata.return_value = {
+            "url": long_url,
+            "description": "Artículo con URL larga",
+            "price": 12.5,
+            "image_url": "https://cdn.example.com/long.jpg",
+        }
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("gifts:add"),
+            {"url": long_url, "analyze": "1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].initial["url"], long_url)
+        self.assertEqual(response.context["form"].initial["description"], "Artículo con URL larga")
+
+    def test_post_creates_item_and_gift(self):
+        self.client.force_login(self.user)
+        data = {
+            "url": "https://shop.example.com/products/1",
+            "person": self.person.pk,
+            "date": "2026-12-24",
+            "description": "Regalo de prueba",
+            "price": "19.99",
+            "image_url": "https://cdn.example.com/gift.jpg",
+            "notes": "Comprarlo antes de diciembre.",
+        }
+
+        response = self.client.post(reverse("gifts:add"), data)
+
+        gift = Gift.objects.get()
+        self.assertRedirects(
+            response,
+            reverse("gifts:detail", args=[gift.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(gift.person, self.person)
+        self.assertEqual(gift.item.url, data["url"])
+        self.assertEqual(gift.date.isoformat(), data["date"])
+        self.assertEqual(gift.price, 19.99)
+        self.assertFalse(gift.is_public)
+        self.assertEqual(gift.item.description, "Regalo de prueba")
+
+    def test_post_reuses_existing_item(self):
+        existing_item = Item.objects.create(
+            description="Artículo existente",
+            url="https://shop.example.com/products/1",
+        )
+        self.client.force_login(self.user)
+        data = {
+            "url": existing_item.url,
+            "person": self.person.pk,
+            "date": "2026-12-24",
+            "description": "Otro título",
+            "price": "10",
+        }
+
+        response = self.client.post(reverse("gifts:add"), data)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Item.objects.count(), 1)
+        gift = Gift.objects.get()
+        self.assertEqual(gift.item, existing_item)
+
+    def test_post_allows_public_gift(self):
+        self.client.force_login(self.user)
+        data = {
+            "url": "https://shop.example.com/products/public",
+            "person": self.person.pk,
+            "date": "2026-12-24",
+            "description": "Regalo público",
+            "is_public": "on",
+        }
+
+        self.client.post(reverse("gifts:add"), data)
+
+        self.assertTrue(Gift.objects.get().is_public)
+
+    def test_bookmarklet_page_is_available_to_authenticated_user(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:bookmarklet"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Añadir a Cloudmarket")
+        self.assertTrue(response.context["bookmarklet_url"].startswith("javascript:"))
+        self.assertIn("/gifts/add/", response.context["bookmarklet_url"])
