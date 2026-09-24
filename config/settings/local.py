@@ -82,4 +82,6 @@ ALLOWED_HOSTS = env.list(
     "DJANGO_ALLOWED_HOSTS",
     default=["dev.cloudmarket.es, cloudmarket.es", "192.168.122.217"],
 )
+if "127.0.0.1" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("127.0.0.1")
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
