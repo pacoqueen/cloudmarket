@@ -1,11 +1,10 @@
 # Casos de uso de Cloudmarket
 
-**cloudmarket.es** — *"Get track of your wishlists and gifts."* (frase de partida del
-[README.rst](README.rst)). Es una aplicación web para apuntar artículos que quieres
-regalar, decidir a quién se los das y cuándo, y marcarlos como entregados a medida que van
-saliendo.
+> Este documento ha sido creado con la asistencia de IA.
 
-Contexto del proyecto, según el repositorio:
+**cloudmarket.es** — [*"Get track of your wishlists and gifts."*](README.rst). Plataforma web para apuntar artículos que quieres regalar, decidir a quién y cuándo, y marcarlos como hechos.
+
+Contexto del proyecto:
 
 - Código abierto en [github.com/pacoqueen/cloudmarket](https://github.com/pacoqueen/cloudmarket),
   licencia **GPLv3** (Francisco José Rodríguez Bogado, 2017). Dos ramas en uso:
@@ -15,7 +14,7 @@ Contexto del proyecto, según el repositorio:
 - Construida con **cookiecutter-django** y ya en Django 6.1 sobre Python 3.13; conserva su
   ADN heredado: dos apps (`gifts` y `cloudmarket.users`), django-allauth, settings partidos
   en `config/settings/`, y la documentación Sphinx de `docs/` (instalación, despliegue con
-  Apache + WSGI, Docker/EC2) más los pendientes de `TODO.md`.
+  Apache + WSGI) más los pendientes de `TODO.md`.
 - Se despliega manualmente en el dominio `cloudmarket.es` con Apache + WSGI
   (`docs/apache2site.conf`) y `gunicorn` como entrada en `Procfile`; los cambios de código
   no se publican solos.
@@ -50,7 +49,7 @@ Mapa de rutas para orientarse: `/` portada con accesos rápidos · `/about/` pá
   dominio del artículo.
 - En cabecera se indica cuántos regalos hay y para cuántas personas.
 
-**Notas:** sin sesión solo se ven los regalos públicos. El buscador de destinatarios es
+ℹ **Notas:** sin sesión solo se ven los regalos públicos. El buscador de destinatarios es
 solo de cliente: el filtro real viaja en la query string y sobrevive al "Aplicar".
 
 ### UC-02 · Ver el detalle de un regalo
@@ -66,13 +65,15 @@ solo de cliente: el filtro real viaja en la query string y sobrevive al "Aplicar
 ### UC-03 · Marcar un regalo como entregado o pendiente
 **Dónde:** desde el detalle, con un POST a `/gifts/<id>/mark/`; al guardar vuelve al índice.
 
-**Nota de seguridad:** esta vista **no exige iniciar sesión** (a diferencia de editar o
+⚠ **Nota de seguridad:** esta vista **no exige iniciar sesión** (a diferencia de editar o
 cambiar la visibilidad). Un visitante anónimo puede marcar como entregado cualquier regalo
 público. Puede ser intencionado (cualquiera puede confirmar que ya está entregado) o un
 hueco pendiente de decidir.
 
 ### UC-04 · Añadir un regalo a mano
-**Actor:** usuario con sesión. **Dónde:** `/gifts/add/`.
+**Actor:** usuario con sesión.
+
+**Dónde:** `/gifts/add/`.
 
 - Campos: URL del artículo (obligatoria), descripción, precio, URL de la imagen, notas,
   destinatario, fecha (por defecto, hoy) y visibilidad.
@@ -82,7 +83,9 @@ hueco pendiente de decidir.
 - Mensaje de éxito y redirección al detalle del regalo creado.
 
 ### UC-05 · Analizar una URL y autocompletar los datos
-**Actor:** usuario con sesión. **Dónde:** `/gifts/add/`, botón *Analizar URL*.
+**Actor:** usuario con sesión.
+
+**Dónde:** `/gifts/add/`, botón *Analizar URL*.
 
 - El análisis ocurre en el servidor, en `gifts/services.py`:
   - `validate_public_url()` evita SSRF: solo `http`/`https`, sin credenciales, nada de
@@ -99,12 +102,14 @@ hueco pendiente de decidir.
   dominio de la URL.
 - También se dispara automáticamente al entrar con `?url=...` (lo usa el bookmarklet).
 
-**Límites conocidos:** no se ejecuta JavaScript, así que las tiendas que montan el producto
+⚠ **Límites conocidos:** no se ejecuta JavaScript, así que las tiendas que montan el producto
 en el cliente no devuelven nada; y Amazon suele responder con su muro antispam, por lo que
 el análisis falla antes incluso de parsear.
 
 ### UC-06 · Capturar un artículo desde cualquier tienda con el bookmarklet
-**Actor:** usuario con sesión. **Dónde:** `/gifts/bookmarklet/`.
+**Actor:** usuario con sesión.
+
+**Dónde:** `/gifts/bookmarklet/`.
 
 - La página explica la instalación (arrastrar el botón a la barra de favoritos) y ofrece
   el acceso directo, que es un enlace `javascript:` que abre `/gifts/add/?url=<url actual>`
@@ -115,7 +120,9 @@ el análisis falla antes incluso de parsear.
   enlace: copiarlo y crear el favorito a mano, o abrir el formulario y pegar la URL.
 
 ### UC-07 · Editar un regalo
-**Actor:** usuario con sesión. **Dónde:** `/gifts/<id>/edit/`.
+**Actor:** usuario con sesión.
+
+**Dónde:** `/gifts/<id>/edit/`.
 
 - Bloque *Artículo*: descripción, URL (con un botón **Abrir** que abre el enlace en una
   pestaña nueva y se va sincronizando con lo que se escribe), notas, URL de la imagen,
@@ -124,13 +131,17 @@ el análisis falla antes incluso de parsear.
 - Al guardar, mensaje de éxito y vuelta al detalle.
 
 ### UC-08 · Publicar o privatizar un regalo
-**Actor:** usuario con sesión. **Dónde:** interruptor en el detalle (POST a
+**Actor:** usuario con sesión.
+
+**Dónde:** interruptor en el detalle (POST a
 `/gifts/<id>/set_public/`).
 
 - Decide si el regalo aparece en `/gifts/` para quien no ha iniciado sesión.
 
 ### UC-09 · Completar las fotos de producto en lote (mantenimiento)
-**Actor:** quien administra la instancia. **Dónde:** consola.
+**Actor:** quien administra la instancia.
+
+**Dónde:** consola.
 
 - `bin/python manage.py fetch_item_images [--force] [--limit N]` recorre los artículos que
   tienen URL pero no imagen, la descarga y la guarda. Es la red de seguridad para cuando el
