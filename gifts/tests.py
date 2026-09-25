@@ -726,3 +726,41 @@ class GiftEditViewTests(TestCase):
             authenticated_response,
             reverse("gifts:edit", args=[self.gift.pk]),
         )
+
+    def test_edit_shows_open_link_with_saved_url(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:edit", args=[self.gift.pk]))
+
+        self.assertContains(response, "gift-add__open-link")
+        self.assertContains(response, 'href="https://shop.example.com/products/1"')
+        self.assertContains(response, 'target="_blank"')
+        self.assertContains(response, 'rel="noopener noreferrer"')
+
+    def test_edit_omits_open_link_when_url_is_empty(self):
+        self.item.url = ""
+        self.item.save(update_fields=["url"])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:edit", args=[self.gift.pk]))
+
+        self.assertNotContains(response, "gift-add__open-link")
+
+    def test_edit_open_link_uses_submitted_url_after_invalid_post(self):
+        self.client.force_login(self.user)
+        data = {
+            "description": "Artículo actualizado",
+            "url": "https://shop.example.com/products/3",
+            "notes": "",
+            "image_url": "",
+            "person": 999999,
+            "date": "2026-12-31",
+            "price": "",
+        }
+
+        response = self.client.post(reverse("gifts:edit", args=[self.gift.pk]), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors)
+        self.assertContains(response, 'href="https://shop.example.com/products/3"')
+        self.assertNotContains(response, 'href="https://shop.example.com/products/1"')

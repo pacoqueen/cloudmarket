@@ -668,6 +668,33 @@ body::after {
     background: #c8e9e4;
 }
 
+.gift-add__open-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: none;
+    align-self: stretch;
+    border: 1px solid rgba(20, 108, 105, 0.35);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    color: var(--teal-dark);
+    background: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 750;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.gift-add__open-link:hover {
+    background: var(--teal-soft);
+    border-color: var(--teal);
+}
+
+.gift-add__open-link[hidden] {
+    display: none;
+}
+
 .gift-add__field input:not([type="checkbox"]),
 .gift-add__field select,
 .gift-add__field textarea {
@@ -857,8 +884,10 @@ body::after {
         flex-direction: column;
     }
 
-    .gift-add__analyze {
+    .gift-add__analyze,
+    .gift-add__open-link {
         width: 100%;
+        justify-content: center;
     }
 
     .gift-add__field--wide,

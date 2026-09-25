@@ -32,7 +32,18 @@
         </div>
         <div class="gift-add__field gift-add__field--wide">
           <label for="{{ form.url.id_for_label }}">{{ form.url.label }}</label>
-          {{ form.url }}
+          <div class="gift-add__url-row">
+            {{ form.url }}
+            {% firstof form.url.value gift.item.url as gift_url %}
+            {% if gift_url %}
+              <a class="gift-add__open-link" data-url-open
+                 href="{{ gift_url }}" target="_blank" rel="noopener noreferrer"
+                 title="Abrir en una pestaña nueva"
+                 aria-label="Abrir el enlace del artículo en una pestaña nueva">
+                <span aria-hidden="true">↗</span> Abrir
+              </a>
+            {% endif %}
+          </div>
           {{ form.url.errors }}
         </div>
         <div class="gift-add__field gift-add__field--wide">
@@ -102,3 +113,8 @@
   </div>
 </section>
 {% endblock content %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="{% static 'gifts/edit.js' %}"></script>
+{% endblock javascript %}
