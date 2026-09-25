@@ -207,8 +207,8 @@ ordenador.
   for cloudmarket"*, con licencia GPL-3.0. De momento solo contiene el esqueleto heredado del
   tutorial de Pong de Kivy (`cloudmarket.py` + `pong.kv`, dependencias Kivy 1.9.1 / pygame /
   Cython de 2016) **sin ninguna conexión con esta web**: no hay API que consumir ni cliente
-  escrito. Para que ese repositorio sea útil, el primer paso es definir una API (o compartir
-  la sesión con la web) y decidir si el cliente la consume, así que sigue pendiente de decisión.
+  escrito. La decisión de cómo avanzar queda recogida más abajo, en
+  [Gaps/Decisiones de arquitectura](#gapsdecisiones-de-arquitectura).
 - El detalle de un regalo no muestra precio ni imagen: solo descripción, destinatario e
   interruptores. En el índice sí se ve el precio.
 - `Person.birthdate` existe en el modelo pero no se usa en ningún formulario.
@@ -216,3 +216,55 @@ ordenador.
 - Las fotos y el precio se extraen del HTML del sitio de compra: Amazon, y en general las
   tiendas con renderizado en cliente o muro antispam, no aportan imagen ni precio.
 - Sin rate limiting en el registro: se han visto altas automatizadas desde IPs externas.
+
+### Gaps/Decisiones de arquitectura
+
+**Decisión:** la API para el cliente móvil (Kivy) se define **después de que la aplicación
+web esté plenamente funcional**, no antes. No obstante, eso no autoriza a aplazar todo lo
+que la API hereda del modelo actual: hay tres cuestiones que conviene resolver *antes* de
+dar la web por cerrada, porque son baratas ahora y caras después.
+
+**Por qué el orden importa.** Hoy el modelo de datos y las reglas de acceso son
+**implícitas**, y una API los convertiría en contrato público:
+
+- `Gift` no tiene propietario: cualquier usuario registrado ve y edita toda la lista, y los
+  anónimos ven los públicos (`public_queryset`, `gifts/views.py`).
+- La vista de marcar como entregado no exige sesión (`gifts/views.py`): un visitante anónimo
+  puede marcar un regalo público.
+- Toda la consulta vive en las vistas, en un módulo de metadatos (`gifts/services.py`) que
+  no cubre la lógica de dominio.
+
+Con una sola interfaz eso es "raro pero tolerable". Con dos clientes (web y móvil) cada
+hueco se duplica y hay tres sitios donde puede vivir la misma regla de permisos; arreglarlo
+después implica **migración de datos** (asignar propietario a los registros existentes)
+más rehacer los dos clientes.
+
+**Secuencia decidida**
+
+1. Terminar la web, cubriendo los gaps que interesen.
+2. **Resolución de dominio antes de cerrar la web** (decisiones baratas ahora):
+   - ¿Quién es el dueño de cada regalo? (`owner` en `Gift`, con migración de los existentes).
+   - ¿Qué reglas de visibilidad exactas? Hoy "público = lo ve todo el mundo".
+   - ¿Qué se permite sin sesión? Hoy: ver los regalos públicos y marcarlos como entregados.
+3. **Capa de servicios compartida**: sacar de las vistas lo que necesitan web y API
+   ("regalos visibles para X", "crear regalo desde URL", "alternar done/public"). Es un
+   refactor pequeño y **no es trabajo perdido** aunque la API no llegue nunca.
+4. **Contrato de la API como documento primero** (OpenAPI o un `api.md`): endpoints y forma
+   del JSON. Sale en un rato y permite diseñar la pantalla Kivy sin backend.
+5. **Implementación incremental de los endpoints**, empezando por solo lectura
+   (`GET /regalos`, `GET /personas`) más el único alta que de verdad importa
+   (`POST /regalos` con una URL, reutilizando `fetch_product_metadata`).
+6. **Cliente Kivy en `cloud-market`**, consumiendo esa API.
+
+**Apuntes finales**
+
+- **Autenticación del cliente propio:** la web usa cookies de sesión + CSRF, que no le
+  sirven a Kivy. Conviene que la API nazca con un **token por dispositivo**, revocable e
+  independiente (emitido desde la web, "este es mi móvil"), en lugar de acoplarse a las
+  cookies y reescribir esa capa cuando aparezca el segundo cliente.
+- **Coste/beneficio de la app Kivy:** si el problema real es *capturar* un regalo rápido
+  desde la tienda, el bot de Telegram (UC-11) y la web responsiva ya lo cubren sin cliente
+  nativo. Kivy gana si hace falta notificación, trabajo sin conexión o un flujo propio.
+- **Alternativa descartada:** montar la API definitiva hoy (DRF + migración del modelo)
+  antes de que el producto esté definido; es invertir en un contrato que todavía puede
+  cambiar.
