@@ -5,6 +5,10 @@ Python 3.13 venv, Django web app ("cloudmarket", wishlist/gift tracker), legacy 
 Use `bin/python` / `bin/django-admin` / `bin/pytest` from the repo-root venv — a bare `python3` cannot find Django.
 Installed Django is 6.1.1; `requirements/*.txt` pins (>=1.11.18, test_plus 1.0.17, …) are stale. Do not bulk-upgrade deps.
 
+## Environment
+- The agent runs inside a Linux VM (repo at `/home/queen/src/cloudmarket`); the user works from a **different host** and tests the app in their own browser at `http://192.168.122.217:8000` (dev server runs here).
+- The session's browser tool is usually **not connected**, and `localhost`/`file://` previews from the VM are useless to the user: don't try to verify UI by clicking around — confirm with rendered HTML, tests, and by asking the user to refresh their tab.
+
 ## Commands
 - Run tests: `bin/python manage.py test`  (manage.py defaults to `config.settings.local`; pytest.ini points at `local` too)
 - Single app: `bin/python manage.py test gifts`
