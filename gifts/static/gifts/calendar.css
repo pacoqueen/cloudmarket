@@ -46,14 +46,39 @@
     font-size: 0.95rem;
 }
 
+/* Empty state: instead of an empty list, a button to create the gift for the
+   selected day. Typical case: a marked day whose gifts are all delivered, so
+   the "solo pendientes" filter leaves nothing to show. */
+
 .upcoming__empty {
-    grid-column: 1 / -1;
-    text-align: center;
+    display: flex;
+    justify-content: center;
     padding: 3rem 1rem;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px dashed rgba(20, 108, 105, 0.25);
-    border-radius: var(--radius);
-    color: var(--muted);
+}
+
+.upcoming__create {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.4rem;
+    border-radius: 999px;
+    font-weight: 750;
+    text-decoration: none;
+    color: var(--teal-dark);
+    background: var(--teal-soft);
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.upcoming__create:hover {
+    color: var(--teal-dark);
+    background: #c8e9e4;
+    transform: translateY(-1px);
+}
+
+.upcoming__create:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 3px;
 }
 
 /* Header */
@@ -109,6 +134,86 @@
 
 /* Date chips show day + month only (the stored year is not meaningful).
    No text-transform here: in Spanish month names are lowercase. */
+
+/* Collapsible person groups
+   ---------------------------------------------------------------------------
+   Only the calendar view uses <details>; index.html keeps its plain <h2>, so it
+   still gets the shared .person-group__title rules untouched and these styles
+   merely add the toggle on top.
+
+   Spacing moves from the title to the <details> because every <summary> is the
+   first (and only) one inside its own parent, which would make the shared
+   .person-group__title:first-of-type { margin-top: 0 } match all of them and
+   collapse the gap between groups. */
+
+.upcoming .person-group {
+    margin-top: 2rem;
+}
+
+.upcoming .person-group:first-of-type {
+    margin-top: 0;
+}
+
+.upcoming .person-group__summary {
+    margin-top: 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.upcoming .person-group__summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Chevron. ::after is taken by the shared gradient rule, so the arrow goes in
+   ::before and lands before the name in the flex row. */
+
+.upcoming .person-group__summary::before {
+    content: "\25B8";
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    font-size: 0.65rem;
+    color: var(--teal);
+    background: var(--teal-soft);
+    border-radius: 50%;
+    transition: transform 0.18s ease, background 0.15s ease;
+}
+
+.upcoming .person-group[open] > .person-group__summary::before {
+    transform: rotate(90deg);
+}
+
+.upcoming .person-group__summary:hover::before {
+    background: #c8e9e4;
+}
+
+.upcoming .person-group__summary:hover .person-group__summary-text {
+    text-decoration: underline;
+}
+
+.upcoming .person-group__summary:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 3px;
+    border-radius: 8px;
+}
+
+.upcoming .person-group__count {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 750;
+    color: var(--teal-dark);
+    background: var(--teal-soft);
+}
 
 /* Filters row (wraps the subtitle + "Solo pendientes" pill) */
 

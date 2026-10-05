@@ -92,8 +92,12 @@
 
       {% if person_groups %}
         {% for group in person_groups %}
-          <h2 class="person-group__title">{{ group.person.name }}</h2>
-          <ul class="gift-grid">
+          <details class="person-group"{% if group.has_pending %} open{% endif %}>
+            <summary class="person-group__title person-group__summary">
+              <span class="person-group__summary-text">{{ group.person.name }}</span>
+              <span class="person-group__count">{{ group.gifts|length }}</span>
+            </summary>
+            <ul class="gift-grid">
             {% for gift in group.gifts %}
               <li class="gift-card">
                 <a class="gift-card__link" href="{% url 'gifts:detail' gift.id %}">
@@ -128,9 +132,21 @@
               </li>
             {% endfor %}
           </ul>
+          </details>
         {% endfor %}
       {% else %}
-        <p class="upcoming__empty">No hay regalos próximos desde esta fecha.</p>
+        {% comment %}
+          Con el filtro de "solo pendientes" puede ocurrir que un día esté marcado
+          en el calendario y aun así no haya ningún regalo que enseñarle: son días
+          con regalos ya entregados. En vez de una lista vacía, ofrecemos crear
+          el regalo de ese día con la fecha ya puesta.
+        {% endcomment %}
+        <div class="upcoming__empty">
+          <a class="upcoming__create"
+             href="{% url 'gifts:add' %}?date={{ selected_date|date:'Y-m-d' }}">
+            Crear regalo para el {{ selected_date|date:"j \d\e F" }}
+          </a>
+        </div>
       {% endif %}
     </div>
   </div>

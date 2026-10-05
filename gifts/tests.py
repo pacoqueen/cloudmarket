@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
 from datetime import date
 from unittest.mock import patch
 
@@ -637,6 +638,48 @@ class AddGiftViewTests(TestCase):
         self.assertTrue(response.context["bookmarklet_url"].startswith("javascript:"))
         self.assertIn("/gifts/add/", response.context["bookmarklet_url"])
 
+    def test_get_prefills_the_date_sent_in_the_query_string(self):
+        # El botón "Crear regalo" del calendario enlaza con ?date=...
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:add"), {"date": "2026-12-25"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].initial["date"], date(2026, 12, 25))
+
+    def test_the_suggested_date_wins_over_today(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:add"), {"date": "1999-01-03"})
+
+        self.assertEqual(response.context["form"].initial["date"], date(1999, 1, 3))
+
+    def test_without_a_date_it_still_defaults_to_today(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:add"))
+
+        self.assertEqual(response.context["form"].initial["date"], timezone.localdate())
+
+    def test_a_malformed_date_is_ignored_instead_of_raising(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("gifts:add"), {"date": "no-es-una-fecha"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].initial["date"], timezone.localdate())
+
+    @patch("gifts.views.fetch_product_metadata", return_value={})
+    def test_the_suggested_date_survives_the_metadata_prefill(self, fetch_metadata):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("gifts:add"),
+            {"date": "2026-12-25", "url": "https://shop.example.com/products/1"},
+        )
+
+        self.assertEqual(response.context["form"].initial["date"], date(2026, 12, 25))
+
 
 class GiftEditViewTests(TestCase):
 
@@ -794,6 +837,32 @@ class UpcomingViewMixin:
             for gift in group["gifts"]
         ]
 
+    def _flat_with_status(self, context, person=None):
+        """(mes, día, 'pendiente'/'hecho') en el orden en que se muestran.
+
+        Con person= se limita a un único grupo, que es donde se aplica la regla de
+        "pendientes arriba" y, dentro de cada bloque, proximidad ascendente.
+        """
+        return [
+            (gift.date.month, gift.date.day, "hecho" if gift.done else "pendiente")
+            for group in context["person_groups"]
+            if person is None or group["person"].name == person
+            for gift in group["gifts"]
+        ]
+
+    def _groups(self, query=""):
+        """(nombre, desplegado, nº de regalos) de cada <details> de la página."""
+        html = self.client.get(reverse("gifts:upcoming") + query).content.decode()
+        return [
+            (name, bool(opened), int(count))
+            for opened, name, count in re.findall(
+                r'<details class="person-group"( open)?>\s*<summary[^>]*>\s*'
+                r'<span class="person-group__summary-text">([^<]*)</span>\s*'
+                r'<span class="person-group__count">(\d+)</span>',
+                html,
+            )
+        ]
+
 
 class UpcomingViewOrderingTests(UpcomingViewMixin, TestCase):
     """La vista de calendario ordena por proximidad a la fecha seleccionada.
@@ -867,6 +936,122 @@ class UpcomingViewOrderingTests(UpcomingViewMixin, TestCase):
         self.assertEqual(context["gift_count"], 3)
         self.assertEqual(len(self._flat_dates(context)), 3)
 
+    def test_pending_gifts_come_first_within_a_person(self):
+        # El regalo entregado es el más próximo, pero el pendiente va igualmente
+        # por delante dentro del grupo.
+        self._gift(self.ana, 10, 6, done=True)
+        self._gift(self.ana, 12, 25, done=False)
+
+        context = self._context("?date=2026-10-01")
+        self.assertEqual(self._flat_dates(context), [(12, 25), (10, 6)])
+
+    def test_proximity_still_orders_each_pending_and_delivered_block(self):
+        self._gift(self.ana, 3, 1, done=False)
+        self._gift(self.ana, 12, 25, done=True)
+        self._gift(self.ana, 10, 6, done=False)
+        self._gift(self.ana, 11, 3, done=True)
+
+        # Pendientes 10/6 y 3/1; entregados 11/3 y 12/25.
+        context = self._context("?date=2026-10-01")
+        self.assertEqual(
+            self._flat_dates(context),
+            [(10, 6), (3, 1), (11, 3), (12, 25)],
+        )
+
+    def test_the_group_order_is_not_changed_by_the_pending_first_rule(self):
+        # El pendiente de Ana está lejísimos y el entregado de Luis es el más
+        # próximo: Luis sigue encabezando la lista de grupos.
+        self._gift(self.ana, 3, 1, done=False)
+        self._gift(self.luis, 10, 6, done=True)
+
+        context = self._context("?date=2026-10-01")
+        self.assertEqual(
+            [group["person"].name for group in context["person_groups"]],
+            ["Luis", "Ana"],
+        )
+
+    def test_the_rule_applies_to_each_person_independently(self):
+        self._gift(self.ana, 1, 1, done=True)
+        self._gift(self.ana, 12, 25, done=False)
+        self._gift(self.luis, 2, 2, done=True)
+        self._gift(self.luis, 11, 11, done=False)
+
+        context = self._context("?date=2026-10-01")
+        by_person = {
+            group["person"].name: [(g.date.month, g.date.day, g.done) for g in group["gifts"]]
+            for group in context["person_groups"]
+        }
+        self.assertEqual(by_person["Ana"], [(12, 25, False), (1, 1, True)])
+        self.assertEqual(by_person["Luis"], [(11, 11, False), (2, 2, True)])
+
+    def test_each_block_runs_ascending_from_the_nearest_date(self):
+        # Regla completa dentro de un grupo: primero los pendientes, luego los
+        # hechos, y en cada bloque de menor a mayor proximidad a la fecha elegida.
+        self._gift(self.ana, 12, 20, done=False)   # +10 días
+        self._gift(self.ana, 12, 5, done=False)    # +1 año (el 5 ya pasó)
+        self._gift(self.ana, 12, 10, done=False)   # hoy
+        self._gift(self.ana, 12, 18, done=True)    # +8 días
+        self._gift(self.ana, 12, 31, done=True)    # +21 días
+        self._gift(self.ana, 12, 2, done=True)     # +1 año (el 2 ya pasó)
+
+        context = self._context("?date=2026-12-10")
+        self.assertEqual(
+            self._flat_with_status(context, person="Ana"),
+            [
+                (12, 10, "pendiente"),
+                (12, 20, "pendiente"),
+                (12, 5, "pendiente"),
+                (12, 18, "hecho"),
+                (12, 31, "hecho"),
+                (12, 2, "hecho"),
+            ],
+        )
+
+    def test_a_day_already_passed_this_month_goes_to_the_end_of_its_block(self):
+        # El 5/12 es "ascendente" respecto al 10/12 sólo dentro del ciclo anual:
+        # como ya pasó, su próximo aniversario cae dentro de un año y se va detrás.
+        self._gift(self.ana, 12, 5, done=False)
+        self._gift(self.ana, 12, 6, done=True)
+
+        context = self._context("?date=2026-12-10")
+        self.assertEqual(
+            self._flat_with_status(context, person="Ana"),
+            [(12, 5, "pendiente"), (12, 6, "hecho")],
+        )
+
+    def test_both_blocks_wrap_into_the_next_years_months(self):
+        # Cruzando diciembre, enero y marzo quedan "cerca" (este año que viene) y
+        # el propio diciembre se va al final, en ambos bloques por igual.
+        self._gift(self.ana, 12, 20, done=False)
+        self._gift(self.ana, 1, 5, done=False)
+        self._gift(self.ana, 3, 3, done=True)
+        self._gift(self.ana, 1, 8, done=True)
+
+        context = self._context("?date=2026-12-10")
+        self.assertEqual(
+            self._flat_with_status(context, person="Ana"),
+            [
+                (12, 20, "pendiente"),
+                (1, 5, "pendiente"),
+                (1, 8, "hecho"),
+                (3, 3, "hecho"),
+            ],
+        )
+
+    def test_gifts_on_the_same_date_fall_back_to_the_description(self):
+        # _gift() reutiliza un único item, así que aquí hace falta crear dos
+        # descripciones distintas para que el desempate sea observable.
+        zorro = Item.objects.create(description="Zorro", url="https://x.es/z")
+        oso = Item.objects.create(description="Oso", url="https://x.es/o")
+        for item in (zorro, oso):
+            Gift.objects.create(person=self.ana, item=item, date="2011-11-05")
+
+        context = self._context("?date=2026-10-01")
+        descriptions = [
+            gift.item.description for gift in context["person_groups"][0]["gifts"]
+        ]
+        self.assertEqual(descriptions, ["Oso", "Zorro"])
+
     def test_pending_toggle_hides_delivered_gifts(self):
         self._gift(self.ana, 1, 3, done=True)
         self._gift(self.ana, 2, 14, done=False)
@@ -934,3 +1119,84 @@ class UpcomingViewTemplateTests(UpcomingViewMixin, TestCase):
 
         html = self.client.get(reverse("gifts:upcoming")).content.decode()
         self.assertEqual(html.count("calendar__day-link--has-gifts"), 1)
+
+
+class UpcomingViewCollapsibleTests(UpcomingViewMixin, TestCase):
+    """Cada persona es un desplegable: abierto si tiene algún regalo pendiente."""
+
+    def test_person_with_a_pending_gift_starts_open(self):
+        self._gift(self.ana, 11, 3)
+
+        self.assertEqual(self._groups(), [("Ana", True, 1)])
+
+    def test_person_with_only_delivered_gifts_starts_collapsed(self):
+        self._gift(self.luis, 11, 8, done=True)
+
+        self.assertEqual(self._groups(), [("Luis", False, 1)])
+
+    def test_one_pending_gift_opens_a_group_that_also_has_delivered_ones(self):
+        self._gift(self.ana, 11, 3, done=True)
+        self._gift(self.ana, 11, 20, done=False)
+
+        self.assertEqual(self._groups(), [("Ana", True, 2)])
+
+    def test_pending_filter_leaves_every_listed_group_open(self):
+        # Con el filtro activo todos los grupos los gifts son pendientes, así que
+        # ninguno queda plegado por sorpresa.
+        self._gift(self.ana, 11, 3)
+        self._gift(self.luis, 11, 8)
+
+        groups = self._groups("?pending=1")
+        self.assertEqual([name for name, _, _ in groups], ["Ana", "Luis"])
+        self.assertEqual([opened for _, opened, _ in groups], [True, True])
+
+    def test_the_group_title_is_the_clickable_summary(self):
+        self._gift(self.ana, 11, 3)
+
+        html = self.client.get(reverse("gifts:upcoming")).content.decode()
+        # <summary> es el elemento que hace clic para plegar/desplegar; el
+        # <h2> de la lista de regalos ya no debe aparecer aquí.
+        self.assertIn("<summary", html)
+        self.assertNotIn('<h2 class="person-group__title"', html)
+
+
+class UpcomingViewEmptyStateTests(UpcomingViewMixin, TestCase):
+    """Si nada concuerda con el filtro, se ofrece crear el regalo de ese día."""
+
+    def _html(self, query=""):
+        return self.client.get(reverse("gifts:upcoming") + query).content.decode()
+
+    def test_offers_to_create_a_gift_when_there_are_no_gifts_at_all(self):
+        html = self._html()
+
+        self.assertIn('class="upcoming__create"', html)
+
+    def test_offers_to_create_a_gift_when_the_filter_hides_everything(self):
+        # Día marcado en el calendario pero con los regalos ya entregados: el
+        # filtro "solo pendientes" deja la lista vacía.
+        self._gift(self.ana, 11, 3, done=True)
+
+        html = self._html("?pending=1")
+        self.assertIn('class="upcoming__create"', html)
+        self.assertNotIn("person-group", html)
+
+    def test_the_create_button_carries_the_selected_date(self):
+        html = self._html("?date=2026-12-25")
+
+        self.assertIn(reverse("gifts:add") + "?date=2026-12-25", html)
+
+    def test_names_the_selected_day_in_the_button(self):
+        html = self._html("?date=2026-12-25")
+
+        self.assertIn("Crear regalo para el 25 de diciembre", html)
+
+    def test_the_old_empty_message_is_gone(self):
+        self.assertNotIn("No hay regalos próximos", self._html())
+
+    def test_the_button_is_shown_to_anonymous_visitors_too(self):
+        # add es @login_required, así que el enlace lleva a iniciar sesión, pero
+        # conviene que exista siempre en vez de dejar un hueco en blanco.
+        self.client.logout()
+        html = self.client.get(reverse("gifts:upcoming")).content.decode()
+
+        self.assertIn('class="upcoming__create"', html)

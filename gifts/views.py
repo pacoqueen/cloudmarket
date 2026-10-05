@@ -101,6 +101,14 @@ def add(request):
                     "No se pudo obtener la información automáticamente. "
                     "Completa los campos que falten."
                 )
+        # Fecha sugerida (p. ej. el día marcado que no tiene ningún regalo
+        # pendiente). Si viene mal, se ignora y se deja el campo vacío.
+        suggested_date = request.GET.get("date", "").strip()
+        if suggested_date:
+            try:
+                initial["date"] = datetime.strptime(suggested_date, "%Y-%m-%d").date()
+            except ValueError:
+                pass
 
     if request.method == "POST":
         form = GiftCreateForm(request.POST)
@@ -358,12 +366,18 @@ class UpcomingView(generic.View):
             ),
         )
 
-        # Agrupar por persona, conservando el orden por proximidad para que
-        # tanto los grupos como los regalos dentro de cada grupo vayan de la
-        # fecha más próxima a la más lejana.
+        # Agrupar por persona. El orden de los grupos lo fija el primer regalo de
+        # cada uno al recorrer la lista, que ya viene ordenada por proximidad.
         grouped = {}
         for gift in gifts:
             grouped.setdefault(gift.person, []).append(gift)
+
+        # Dentro de cada persona los pendientes van arriba. sort() es estable, así
+        # que basta con ordenar por "done" (False < True): los pendientes quedan
+        # primero y cada bloque mantiene su orden por proximidad. No se toca el
+        # orden de los grupos, que sigue siendo por regalo más próximo.
+        for group_gifts in grouped.values():
+            group_gifts.sort(key=lambda gift: gift.done)
 
         # Días con regalos para el calendario (mes visible, ignorando el año y el estado)
         year = selected_date.year
@@ -390,7 +404,14 @@ class UpcomingView(generic.View):
             "weeks": weeks,
             "days_with_gifts": days_with_gifts,
             "person_groups": [
-                {"person": person, "gifts": group_gifts}
+                {
+                    "person": person,
+                    "gifts": group_gifts,
+                    # Se despliega de entrada quien tenga algún regalo pendiente;
+                    # el resto, plegado. Con el filtro de "solo pendientes" todos
+                    # los grupos salen desplegados, que es lo coherente.
+                    "has_pending": any(not gift.done for gift in group_gifts),
+                }
                 for person, group_gifts in grouped.items()
             ],
             "only_pending": only_pending,
