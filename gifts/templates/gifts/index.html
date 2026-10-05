@@ -14,6 +14,7 @@
     <h1 class="gift-list__title">Regalos</h1>
     {% if user.is_authenticated %}
       <div class="gift-list__actions">
+        <a class="gift-list__calendar" href="{% url 'gifts:upcoming' %}">📅 Calendario</a>
         <a class="gift-list__add" href="{% url 'gifts:add' %}">+ Añadir regalo</a>
         <a class="gift-list__bookmarklet" href="{% url 'gifts:bookmarklet' %}">Bookmarklet</a>
       </div>

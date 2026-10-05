@@ -522,6 +522,7 @@ body::after {
 }
 
 .gift-list__add,
+.gift-list__calendar,
 .gift-add__bookmarklet-link,
 .home-actions__button {
     display: inline-flex;
@@ -534,6 +535,7 @@ body::after {
 }
 
 .gift-list__add,
+.gift-list__calendar,
 .gift-add__bookmarklet-link {
     padding: 0.55rem 0.9rem;
     color: var(--teal-dark);
@@ -541,6 +543,7 @@ body::after {
 }
 
 .gift-list__add:hover,
+.gift-list__calendar:hover,
 .gift-add__bookmarklet-link:hover {
     color: var(--teal-dark);
     background: #c8e9e4;

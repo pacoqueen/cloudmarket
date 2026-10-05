@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import calendar
 import json
+from datetime import date, datetime
 from urllib.parse import urlparse
 
 from django.contrib import messages
@@ -293,3 +295,105 @@ def set_public(request, gift_id):
     gift.is_public = "is_public" in request.POST
     gift.save(update_fields=["is_public"])
     return HttpResponseRedirect(reverse('gifts:detail', args=(gift_id, )))
+
+
+class UpcomingView(generic.View):
+    """Vista de calendario con los próximos regalos a hacer.
+
+    La fecha importante es el día y el mes; el año se ignora, porque las
+    fechas de regalo son recurrentes (un cumpleaños pasa todos los años).
+    Eso hace que cualquier regalo vuelva a tocar dentro de los próximos
+    12 meses, así que la lista siempre los contiene todos y lo que cambia
+    al elegir un día es el orden: del más próximo al más lejano.
+    """
+
+    template_name = "gifts/upcoming.html"
+
+    def get(self, request):
+        # Fecha seleccionada (por defecto, hoy)
+        date_str = request.GET.get("date")
+        if date_str:
+            try:
+                selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                selected_date = date.today()
+        else:
+            selected_date = date.today()
+
+        # Toggle de solo pendientes
+        only_pending = request.GET.get("pending") == "1"
+
+        from django.db.models.functions import ExtractDay, ExtractMonth
+
+        # Consulta de regalos. El año se ignora: las fechas de regalo son
+        # recurrentes (cumpleaños, etc.), así que cualquier regalo vuelve a
+        # tocar dentro de los próximos 12 meses. Por eso no filtramos por rango
+        # de meses: todos los regalos están "pendientes de caer"; lo que cambia
+        # al elegir un día es el orden, de la fecha más próxima a la más lejana.
+        queryset = public_queryset(Gift.objects.all(), request)
+        if only_pending:
+            queryset = queryset.filter(done=False)
+        queryset = queryset.select_related("person", "item")
+
+        def proximity(gift):
+            """Distancia a la fecha seleccionada, ignorando el año.
+
+            Devuelve un entero que ordena de la fecha más próxima a la más
+            lejana dentro de un ciclo anual: meses que faltan hasta el próximo
+            aniversario, más el día dentro de ese mes.
+            """
+            months = (gift.date.month - selected_date.month) % 12
+            # Mismo mes pero día ya pasado: el próximo aniversario es el del año
+            # siguiente, es decir, dentro de 12 meses.
+            if months == 0 and gift.date.day < selected_date.day:
+                months = 12
+            return months * 32 + gift.date.day
+
+        gifts = sorted(
+            queryset,
+            key=lambda gift: (
+                proximity(gift),
+                gift.person.name.lower(),
+                gift.item.description.lower(),
+            ),
+        )
+
+        # Agrupar por persona, conservando el orden por proximidad para que
+        # tanto los grupos como los regalos dentro de cada grupo vayan de la
+        # fecha más próxima a la más lejana.
+        grouped = {}
+        for gift in gifts:
+            grouped.setdefault(gift.person, []).append(gift)
+
+        # Días con regalos para el calendario (mes visible, ignorando el año y el estado)
+        year = selected_date.year
+        month = selected_date.month
+
+        days_with_gifts = set(
+            str(day) for day in
+            public_queryset(Gift.objects.all(), request)
+            .annotate(
+                gift_month=ExtractMonth("date"),
+                gift_day=ExtractDay("date"),
+            )
+            .filter(gift_month=month)
+            .values_list("gift_day", flat=True)
+            .distinct()
+        )
+
+        # Construir calendario mensual
+        cal = calendar.Calendar(firstweekday=calendar.MONDAY)
+        weeks = cal.monthdatescalendar(year, month)
+
+        return render(request, self.template_name, {
+            "selected_date": selected_date,
+            "weeks": weeks,
+            "days_with_gifts": days_with_gifts,
+            "person_groups": [
+                {"person": person, "gifts": group_gifts}
+                for person, group_gifts in grouped.items()
+            ],
+            "only_pending": only_pending,
+            "today": date.today(),
+            "gift_count": len(gifts),
+        })

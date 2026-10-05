@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Próximos regalos · {{ block.super }}{% endblock %}
+
+{% block css %}
+  {{ block.super }}
+  {# style.css holds the shared design system (tokens, background, gift cards). #}
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/style.css' %}" />
+  <link rel="stylesheet" type="text/css" href="{% static 'gifts/calendar.css' %}" />
+{% endblock css %}
+
+{% block content %}
+<section class="upcoming">
+  <div class="upcoming__header">
+    <h1 class="upcoming__title">Próximos regalos</h1>
+    <div class="upcoming__actions">
+      <a class="upcoming__back" href="{% url 'gifts:index' %}">← Volver a regalos</a>
+      {% if user.is_authenticated %}
+        <a class="upcoming__add" href="{% url 'gifts:add' %}">+ Añadir regalo</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="upcoming__layout">
+    <aside class="calendar" aria-label="Calendario">
+      <div class="calendar__nav">
+        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}" aria-label="Mes anterior" data-nav="prev">←</a>
+        <span class="calendar__month">{{ selected_date|date:"F Y" }}</span>
+        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}" aria-label="Mes siguiente" data-nav="next">→</a>
+      </div>
+      <table class="calendar__table">
+        <thead>
+          <tr>
+            <th scope="col">Lu</th>
+            <th scope="col">Ma</th>
+            <th scope="col">Mi</th>
+            <th scope="col">Ju</th>
+            <th scope="col">Vi</th>
+            <th scope="col">Sa</th>
+            <th scope="col">Do</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+            <tr>
+              {% for day in week %}
+                {% comment %}
+                  days_with_gifts ya viene filtrado por el mes visible. Exigir además
+                  day.month == selected_date.month evita que un solo regalo marque dos
+                  celdas: la del mes visible y las de los meses contiguos que caen en
+                  la misma rejilla.
+                {% endcomment %}
+                {% if day.month == selected_date.month and day|date:'j' in days_with_gifts %}
+                  <td class="calendar__day calendar__day--has-gifts{% if day == selected_date %} calendar__day--selected{% endif %}{% if day == today %} calendar__day--today{% endif %}">
+                    <a class="calendar__day-link calendar__day-link--has-gifts"
+                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}&amp;pending={% if only_pending %}1{% else %}0{% endif %}"
+                       aria-label="{{ day|date:'j' }} — tiene regalos">
+                      <span class="calendar__day-number">{{ day|date:'j' }}</span>
+                    </a>
+                  </td>
+                {% else %}
+                  <td class="calendar__day{% if day.month != selected_date.month %} calendar__day--other{% endif %}{% if day == selected_date %} calendar__day--selected{% endif %}{% if day == today %} calendar__day--today{% endif %}">
+                    <a class="calendar__day-link"
+                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}&amp;pending={% if only_pending %}1{% else %}0{% endif %}">
+                      <span class="calendar__day-number">{{ day|date:'j' }}</span>
+                    </a>
+                  </td>
+                {% endif %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="calendar__legend">
+        <span class="calendar__legend-item"><span class="calendar__legend-dot"></span> Con regalos</span>
+        <span class="calendar__legend-item"><span class="calendar__legend-dot calendar__legend-dot--today"></span> Hoy</span>
+        <a class="calendar__today" href="{% url 'gifts:upcoming' %}">Mes actual</a>
+      </div>
+    </aside>
+
+    <div class="upcoming__content">
+      <div class="upcoming__filters">
+        <p class="upcoming__subtitle">
+          {{ gift_count }} regalo{{ gift_count|pluralize }}, del más próximo al más lejano
+        </p>
+        <a class="filter-link{% if only_pending %} filter-link--active{% endif %}"
+           href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}0{% else %}1{% endif %}">
+          {% if only_pending %}✓ Solo pendientes{% else %}Solo pendientes{% endif %}
+        </a>
+      </div>
+
+      {% if person_groups %}
+        {% for group in person_groups %}
+          <h2 class="person-group__title">{{ group.person.name }}</h2>
+          <ul class="gift-grid">
+            {% for gift in group.gifts %}
+              <li class="gift-card">
+                <a class="gift-card__link" href="{% url 'gifts:detail' gift.id %}">
+                  <span class="gift-card__top">
+                    <span class="gift-card__title">
+                      <span class="gift-card__item">{{ gift.item }}</span>
+                    </span>
+                    {% if gift.item.preview_url %}
+                      <img class="gift-card__preview" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+                    {% endif %}
+                    {% if gift.done %}
+                      <span class="status-badge status-badge--ok" aria-label="Regalado">✔</span>
+                    {% else %}
+                      <span class="status-badge status-badge--ko" aria-label="Pendiente">✘</span>
+                    {% endif %}
+                  </span>
+                  <span class="gift-card__footer">
+                    <span class="gift-card__chip gift-card__chip--date">{{ gift.date|date:"j F" }}</span>
+                    {% if gift.price %}
+                      <span class="gift-card__chip gift-card__chip--price">{{ gift.price }} €</span>
+                    {% endif %}
+                  </span>
+                </a>
+                {% if gift.item.url %}
+                  <a class="gift-card__article" href="{{ gift.item.url }}" target="_blank" rel="noopener noreferrer">
+                    {% if gift.item.preview_url %}
+                      <img class="gift-card__article-ico" src="{{ gift.item.preview_url }}" alt="" loading="lazy" />
+                    {% endif %}
+                    Ver artículo en {{ gift.item.url_host }} ↗
+                  </a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <p class="upcoming__empty">No hay regalos próximos desde esta fecha.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock content %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="{% static 'gifts/calendar.js' %}"></script>
+{% endblock javascript %}

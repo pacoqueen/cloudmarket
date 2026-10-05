@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from datetime import date
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -764,3 +765,172 @@ class GiftEditViewTests(TestCase):
         self.assertTrue(response.context["form"].errors)
         self.assertContains(response, 'href="https://shop.example.com/products/3"')
         self.assertNotContains(response, 'href="https://shop.example.com/products/1"')
+
+
+class UpcomingViewMixin:
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="tester")
+        self.client.force_login(self.user)
+        self.ana = Person.objects.create(name="Ana")
+        self.luis = Person.objects.create(name="Luis")
+        self.item = Item.objects.create(description="Algo", url="")
+
+    def _gift(self, person, month, day, year=2017, done=False):
+        return Gift.objects.create(
+            person=person, item=self.item,
+            date="%d-%02d-%02d" % (year, month, day), done=done,
+        )
+
+    def _context(self, query=""):
+        response = self.client.get(reverse("gifts:upcoming") + query)
+        self.assertEqual(response.status_code, 200)
+        return response.context
+
+    def _flat_dates(self, context):
+        """(mes, día) de todos los regalos, en el orden en que se muestran."""
+        return [
+            (gift.date.month, gift.date.day)
+            for group in context["person_groups"]
+            for gift in group["gifts"]
+        ]
+
+
+class UpcomingViewOrderingTests(UpcomingViewMixin, TestCase):
+    """La vista de calendario ordena por proximidad a la fecha seleccionada.
+
+    Las fechas de regalo son recurrentes, así que el año se ignora siempre: un
+    regalo guardado como 25/12/2017 vuelve a caer el 25 de diciembre.
+    """
+
+    def test_ignores_the_stored_year_and_sorts_nearest_first(self):
+        # Años muy distintos: el orden sólo puede depender de mes/día.
+        self._gift(self.ana, 12, 25, year=2017)
+        self._gift(self.ana, 1, 3, year=2031)
+        self._gift(self.ana, 2, 14, year=2001)
+
+        # Desde el 1 de marzo: 25/12 (9 meses), 3/1 (10 meses), 14/2 (11 meses).
+        context = self._context("?date=1999-03-01")
+        self.assertEqual(self._flat_dates(context), [(12, 25), (1, 3), (2, 14)])
+
+    def test_same_month_earlier_day_rolls_over_to_next_year(self):
+        # 20/12 está antes que el 25/12 seleccionado: no se descarta, cae dentro
+        # de 12 meses, justo el último del ciclo.
+        self._gift(self.ana, 12, 20, year=2005)
+        self._gift(self.ana, 12, 25, year=2017)
+
+        context = self._context("?date=2017-12-25")
+        self.assertEqual(self._flat_dates(context), [(12, 25), (12, 20)])
+
+    def test_all_gifts_are_listed_regardless_of_the_selected_date(self):
+        # Ignorando el año, todo vuelve a tocar en los próximos 12 meses: elegir
+        # un día cambia el orden, nunca hace desaparecer regalos.
+        self._gift(self.ana, 1, 3)
+        self._gift(self.ana, 6, 15)
+        self._gift(self.ana, 12, 25)
+
+        for query in ("?date=1999-12-25", "?date=2026-10-05", "?date=2026-06-15"):
+            context = self._context(query)
+            self.assertEqual(len(self._flat_dates(context)), 3, query)
+
+    def test_wraps_around_the_end_of_the_year(self):
+        self._gift(self.ana, 1, 3, year=2001)
+        self._gift(self.ana, 12, 5, year=2017)
+        self._gift(self.ana, 12, 25, year=2017)
+
+        # Desde el 20/12: 25/12 llega en 5 días, el 3/1 en 14 (ya en el "año
+        # siguiente", pero sin esperar un año real) y el 5/12 tardaría casi un
+        # año, así que va el último.
+        context = self._context("?date=2017-12-20")
+        self.assertEqual(
+            self._flat_dates(context),
+            [(12, 25), (1, 3), (12, 5)],
+        )
+
+    def test_person_groups_follow_nearest_gift(self):
+        # Desde el 1 de enero, Ana (3/1) es lo más próximo y Luis (25/12) lo más
+        # lejano, así que el grupo de Ana va primero.
+        self._gift(self.luis, 12, 25)
+        self._gift(self.ana, 1, 3)
+
+        context = self._context("?date=2026-01-01")
+        self.assertEqual(
+            [group["person"].name for group in context["person_groups"]],
+            ["Ana", "Luis"],
+        )
+
+    def test_gift_count_matches_the_listed_gifts(self):
+        self._gift(self.ana, 1, 3)
+        self._gift(self.ana, 2, 14)
+        self._gift(self.ana, 3, 8)
+
+        context = self._context("?date=1999-12-25")
+        self.assertEqual(context["gift_count"], 3)
+        self.assertEqual(len(self._flat_dates(context)), 3)
+
+    def test_pending_toggle_hides_delivered_gifts(self):
+        self._gift(self.ana, 1, 3, done=True)
+        self._gift(self.ana, 2, 14, done=False)
+
+        context = self._context("?date=1999-12-25&pending=1")
+        self.assertEqual(self._flat_dates(context), [(2, 14)])
+
+    def test_days_with_gifts_ignores_year_and_done_status(self):
+        self._gift(self.ana, 12, 25, year=1999, done=True)
+
+        context = self._context("?date=2026-12-01")
+        # 25/12 se marca aunque el regalo sea de 1999 y esté entregado.
+        self.assertIn("25", context["days_with_gifts"])
+
+    def test_days_with_gifts_only_covers_the_visible_month(self):
+        self._gift(self.ana, 12, 25)
+
+        context = self._context("?date=2026-12-01")
+        self.assertEqual(context["days_with_gifts"], {"25"})
+
+
+class UpcomingViewTemplateTests(UpcomingViewMixin, TestCase):
+    """La vista de calendario debe verse igual que la lista de regalos."""
+
+    def setUp(self):
+        super().setUp()
+        today = date.today()
+        self._gift(self.ana, today.month, today.day, year=1999)
+
+    def test_loads_the_shared_design_system_stylesheet(self):
+        # style.css define las variables de color y el fondo de la página; sin él
+        # el calendario se ve sin estilos y los marcadores verdes tampoco salen.
+        response = self.client.get(reverse("gifts:upcoming"))
+        self.assertContains(response, "gifts/style.css")
+        self.assertContains(response, "gifts/calendar.css")
+
+    def test_renders_month_navigation_arrows(self):
+        response = self.client.get(reverse("gifts:upcoming"))
+        self.assertContains(response, 'data-nav="prev"')
+        self.assertContains(response, 'data-nav="next"')
+
+    def test_marks_today_and_gift_days(self):
+        response = self.client.get(reverse("gifts:upcoming"))
+        self.assertContains(response, "calendar__day--today")
+        # El regalo de hoy (guardado en 1999) marca el día.
+        self.assertContains(response, "calendar__day--has-gifts")
+        self.assertContains(response, "calendar__day-link--has-gifts")
+
+    def test_links_back_to_the_gift_list(self):
+        response = self.client.get(reverse("gifts:upcoming"))
+        self.assertContains(response, reverse("gifts:index"))
+
+    def test_a_gift_marks_only_one_cell(self):
+        # Un regalo no debe marcar dos celdas: la del mes visible y la del mes
+        # contiguo que cae en la misma rejilla.
+        html = self.client.get(reverse("gifts:upcoming")).content.decode()
+        self.assertEqual(html.count("calendar__day-link--has-gifts"), 1)
+
+    def test_does_not_mark_days_of_the_adjacent_months(self):
+        # El día 1 aparece también al principio de la rejilla del mes siguiente
+        # (celda "contigua"): ese 1 no debe marcarse por el regalo del mes visible.
+        Gift.objects.all().delete()
+        today = date.today()
+        self._gift(self.ana, today.month, 1, year=1999)
+
+        html = self.client.get(reverse("gifts:upcoming")).content.decode()
+        self.assertEqual(html.count("calendar__day-link--has-gifts"), 1)

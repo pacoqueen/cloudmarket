@@ -1,0 +1,329 @@
+/* ---------------------------------------------------------------------------
+   Calendar view styles.
+
+   The shared design system (colour tokens, body background, gift cards,
+   filter pills, animations) lives in gifts/style.css and MUST be loaded
+   before this file. Only calendar-specific styles belong here.
+   --------------------------------------------------------------------------- */
+
+:root {
+    /* Accent used for "today" and the selected day, kept out of style.css so
+       the gifts list view is unaffected. */
+    --cal-blue: #2563eb;
+    --cal-blue-dark: #1d4ed8;
+    --cal-blue-soft: #dbeafe;
+}
+
+.upcoming {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    position: relative;
+    z-index: 1;
+}
+
+.upcoming__title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.25rem;
+}
+
+.upcoming__layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.upcoming__content {
+    min-width: 0;
+}
+
+.upcoming__subtitle {
+    margin: 0 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.upcoming__empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem 1rem;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px dashed rgba(20, 108, 105, 0.25);
+    border-radius: var(--radius);
+    color: var(--muted);
+}
+
+/* Header */
+
+.upcoming__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.upcoming__header .upcoming__title {
+    margin-bottom: 0;
+}
+
+.upcoming__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.upcoming__back {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.upcoming__back:hover {
+    color: var(--teal-dark);
+    text-decoration: underline;
+}
+
+.upcoming__add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 750;
+    text-decoration: none;
+    padding: 0.55rem 0.9rem;
+    color: var(--teal-dark);
+    background: var(--teal-soft);
+}
+
+.upcoming__add:hover {
+    color: var(--teal-dark);
+    background: #c8e9e4;
+}
+
+/* Date chips show day + month only (the stored year is not meaningful).
+   No text-transform here: in Spanish month names are lowercase. */
+
+/* Filters row (wraps the subtitle + "Solo pendientes" pill) */
+
+.upcoming__filters {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* ---- Calendar card ----
+   Mirrors .filter-sidebar__block so the sidebar reads as part of the app. */
+
+.calendar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(20, 108, 105, 0.15);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(4px);
+    position: sticky;
+    top: 1.25rem;
+}
+
+.calendar__nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.calendar__month {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--ink);
+}
+
+.calendar__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    text-decoration: none;
+    color: var(--teal-dark);
+    background: var(--teal-soft);
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.calendar__arrow:hover {
+    color: #fff;
+    background: var(--teal);
+}
+
+.calendar__table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.calendar__table th {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--muted);
+    text-align: center;
+    padding: 0.4rem 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.calendar__day {
+    text-align: center;
+    padding: 0.15rem;
+    vertical-align: middle;
+}
+
+.calendar__day--other {
+    opacity: 0.35;
+}
+
+.calendar__day-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0 auto;
+    border-radius: 999px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.calendar__day-link:hover {
+    background: var(--teal-soft);
+    color: var(--teal-dark);
+}
+
+.calendar__day-number {
+    line-height: 1;
+}
+
+/* Days that have gifts (any year, done or pending): solid green. */
+
+.calendar__day-link--has-gifts {
+    background: var(--ok);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 2px 6px -1px rgba(22, 163, 74, 0.55);
+}
+
+.calendar__day-link--has-gifts:hover {
+    background: #15803d;
+    color: #fff;
+}
+
+/* Today: blue ring so it stays legible even when the day also has gifts. */
+
+.calendar__day--today .calendar__day-link {
+    box-shadow: 0 0 0 3px var(--cal-blue);
+    font-weight: 800;
+}
+
+.calendar__day--today:not(.calendar__day--has-gifts) .calendar__day-link {
+    background: var(--cal-blue);
+    color: #fff;
+}
+
+.calendar__day--today:not(.calendar__day--has-gifts) .calendar__day-link:hover {
+    background: var(--cal-blue-dark);
+    color: #fff;
+}
+
+/* Selected day: orange accent ring (today/has-gifts keep their own colours). */
+
+.calendar__day--selected .calendar__day-link {
+    outline: 2px dashed var(--orange);
+    outline-offset: 2px;
+}
+
+/* Today is selected on load, so it already carries a bold blue ring. */
+.calendar__day--today .calendar__day-link {
+    outline: none;
+}
+
+.calendar__legend {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(20, 108, 105, 0.15);
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.calendar__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.calendar__legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--ok);
+}
+
+.calendar__legend-dot--today {
+    background: var(--cal-blue);
+}
+
+.calendar__today {
+    color: var(--teal-dark);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.calendar__today:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+
+@media (max-width: 820px) {
+    .upcoming__layout {
+        grid-template-columns: 1fr;
+    }
+
+    .calendar {
+        position: static;
+    }
+}
+
+@media (max-width: 620px) {
+    .upcoming__header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .upcoming__add {
+        align-self: flex-start;
+    }
+}

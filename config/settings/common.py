@@ -122,16 +122,15 @@ DATABASES['default']['ATOMIC_REQUESTS'] = True
 TIME_ZONE = 'Europe/Madrid'
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#language-code
-LANGUAGE_CODE = 'en-us'
+# La app está en español: nombres de meses y días en español, con independencia
+# de la cabecera Accept-Language del navegador (no usamos LocaleMiddleware).
+LANGUAGE_CODE = 'es-es'
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#use-i18n
 USE_I18N = True
-
-# See: https://docs.djangoproject.com/en/dev/ref/settings/#use-l10n
-USE_L10N = True
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#use-tz
 USE_TZ = True
