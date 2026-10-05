@@ -1200,3 +1200,141 @@ class UpcomingViewEmptyStateTests(UpcomingViewMixin, TestCase):
         html = self.client.get(reverse("gifts:upcoming")).content.decode()
 
         self.assertIn('class="upcoming__create"', html)
+
+
+class UpcomingViewOnlyDayFilterTests(UpcomingViewMixin, TestCase):
+    """El filtro "solo este día" deja únicamente los regalos del día seleccionado."""
+
+    def test_only_shows_gifts_falling_on_the_selected_day(self):
+        self._gift(self.ana, 12, 25)
+        self._gift(self.ana, 12, 26)
+        self._gift(self.ana, 6, 10)
+        self._gift(self.luis, 12, 25)
+
+        context = self._context("?date=2026-12-25&only_day=1")
+        self.assertEqual(
+            [(gift.date.month, gift.date.day) for gift in context["person_groups"][0]["gifts"]],
+            [(12, 25)],
+        )
+        self.assertEqual(
+            sorted(group["person"].name for group in context["person_groups"]),
+            ["Ana", "Luis"],
+        )
+
+    def test_ignores_the_stored_year(self):
+        # El filtro compara día y mes, no la fecha completa: un regalo de 1999
+        # sigue apareciendo en el 25/12 de cualquier año.
+        self._gift(self.ana, 12, 25, year=1999)
+        self._gift(self.ana, 12, 25, year=2031)
+
+        context = self._context("?date=2026-12-25&only_day=1")
+        self.assertEqual(len(self._flat_dates(context)), 2)
+
+    def test_hides_people_without_a_gift_that_day(self):
+        self._gift(self.ana, 12, 25)
+        self._gift(self.luis, 6, 10)
+
+        context = self._context("?date=2026-12-25&only_day=1")
+        self.assertEqual([g["person"].name for g in context["person_groups"]], ["Ana"])
+
+    def test_is_off_by_default_and_behaves_as_before(self):
+        self._gift(self.ana, 12, 25)
+        self._gift(self.ana, 6, 10)
+
+        context = self._context("?date=2026-12-25")
+        self.assertEqual(len(self._flat_dates(context)), 2)
+        self.assertFalse(context["only_day"])
+
+    def test_combines_with_the_pending_filter(self):
+        self._gift(self.ana, 12, 25)
+        self._gift(self.ana, 12, 25, done=True)
+        self._gift(self.ana, 6, 10)
+
+        context = self._context("?date=2026-12-25&only_day=1&pending=1")
+        self.assertEqual(self._flat_with_status(context), [(12, 25, "pendiente")])
+
+    def test_pending_still_wins_when_both_filters_are_active(self):
+        self._gift(self.ana, 12, 25, done=True)
+
+        context = self._context("?date=2026-12-25&only_day=1&pending=1")
+        self.assertEqual(context["person_groups"], [])
+
+    def test_offers_to_create_a_gift_when_the_day_is_empty(self):
+        self._gift(self.ana, 6, 10)
+
+        html = self.client.get(
+            reverse("gifts:upcoming") + "?date=2026-12-25&only_day=1",
+        ).content.decode()
+        self.assertIn('class="upcoming__create"', html)
+        self.assertIn(reverse("gifts:add") + "?date=2026-12-25", html)
+
+    def test_the_subtitle_names_the_day_instead_of_the_order(self):
+        self._gift(self.ana, 12, 25)
+
+        response = self.client.get(reverse("gifts:upcoming") + "?date=2026-12-25&only_day=1")
+        self.assertContains(response, "1 regalo el 25 de diciembre")
+
+
+class UpcomingViewFilterLinkTests(UpcomingViewMixin, TestCase):
+    """Los enlaces de filtro conservan el estado del otro filtro y del día."""
+
+    def _filter_links(self, query):
+        """Los dos href de la barra de filtros, con la fecha seleccionada."""
+        html = self.client.get(reverse("gifts:upcoming") + query).content.decode()
+        return [
+            href.replace("&amp;", "&").split("?", 1)[1]
+            for href in re.findall(r'class="filter-link[^"]*"\s*\n\s*href="([^"]+)"', html)
+        ]
+
+    def test_the_page_offers_both_filters(self):
+        self._gift(self.ana, 12, 25)
+
+        html = self.client.get(reverse("gifts:upcoming")).content.decode()
+        self.assertIn("Solo pendientes", html)
+        self.assertIn("Solo este día", html)
+
+    def test_toggling_pending_keeps_the_day_filter(self):
+        links = self._filter_links("?date=2026-12-25&pending=1&only_day=1")
+
+        self.assertEqual(links[0], "date=2026-12-25&pending=0&only_day=1")
+
+    def test_toggling_the_day_filter_keeps_pending(self):
+        links = self._filter_links("?date=2026-12-25&pending=1&only_day=1")
+
+        self.assertEqual(links[1], "date=2026-12-25&pending=1&only_day=0")
+
+    def test_the_two_filter_links_are_never_the_same(self):
+        # Usar el mismo tag de alternancia en los dos enlaces los deja idénticos
+        # y desactiva ambos filtros de golpe.
+        for query in ("?date=2026-12-25",
+                      "?date=2026-12-25&pending=1",
+                      "?date=2026-12-25&only_day=1",
+                      "?date=2026-12-25&pending=1&only_day=1"):
+            links = self._filter_links(query)
+            self.assertEqual(len(links), 2, query)
+            self.assertNotEqual(links[0], links[1], query)
+
+    def test_both_filters_start_from_a_clean_state(self):
+        links = self._filter_links("?date=2026-12-25")
+
+        self.assertEqual(
+            links,
+            ["date=2026-12-25&pending=1&only_day=0", "date=2026-12-25&pending=0&only_day=1"],
+        )
+
+    def test_day_links_carry_both_filters_over(self):
+        # Al pulsar otro día se cambia de día, no de filtro.
+        html = self.client.get(
+            reverse("gifts:upcoming") + "?date=2026-12-25&pending=1&only_day=1",
+        ).content.decode()
+        href = re.search(r'class="calendar__day-link[^"]*"\s*\n?\s*href="([^"]+)"', html).group(1)
+
+        self.assertIn("&pending=1&only_day=1", href.replace("&amp;", "&"))
+
+    def test_month_arrows_carry_both_filters_over(self):
+        html = self.client.get(
+            reverse("gifts:upcoming") + "?date=2026-12-25&pending=1&only_day=1",
+        ).content.decode()
+        arrow = re.search(r'href="([^"]*only_day[^"]*)"', html).group(1)
+
+        self.assertIn("&pending=1&only_day=1", arrow.replace("&amp;", "&"))

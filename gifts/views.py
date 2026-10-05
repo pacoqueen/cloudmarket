@@ -328,8 +328,10 @@ class UpcomingView(generic.View):
         else:
             selected_date = date.today()
 
-        # Toggle de solo pendientes
+        # Toggles de los filtros. Son independientes: "solo pendientes" mira el
+        # estado del regalo y "solo este día" su fecha, y se pueden combinar.
         only_pending = request.GET.get("pending") == "1"
+        only_day = request.GET.get("only_day") == "1"
 
         from django.db.models.functions import ExtractDay, ExtractMonth
 
@@ -341,6 +343,14 @@ class UpcomingView(generic.View):
         queryset = public_queryset(Gift.objects.all(), request)
         if only_pending:
             queryset = queryset.filter(done=False)
+        if only_day:
+            # Mismo día y mes que el seleccionado, sin importar el año. Con este
+            # filtro todos los regalos compartidos tienen la misma proximidad, así
+            # que el orden se resuelve por persona y descripción.
+            queryset = queryset.filter(
+                date__month=selected_date.month,
+                date__day=selected_date.day,
+            )
         queryset = queryset.select_related("person", "item")
 
         def proximity(gift):
@@ -415,6 +425,7 @@ class UpcomingView(generic.View):
                 for person, group_gifts in grouped.items()
             ],
             "only_pending": only_pending,
+            "only_day": only_day,
             "today": date.today(),
             "gift_count": len(gifts),
         })

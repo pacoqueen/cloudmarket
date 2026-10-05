@@ -215,7 +215,7 @@
     background: var(--teal-soft);
 }
 
-/* Filters row (wraps the subtitle + "Solo pendientes" pill) */
+/* Filters row (subtitle on the left, the filter pills on the right) */
 
 .upcoming__filters {
     display: flex;
@@ -224,6 +224,14 @@
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
+}
+
+/* Keeps the pills together so space-between only splits subtitle vs. pills. */
+
+.upcoming__filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 /* ---- Calendar card ----

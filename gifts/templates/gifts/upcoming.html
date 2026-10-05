@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static gifts_extras %}
 
 {% block title %}Próximos regalos · {{ block.super }}{% endblock %}
 
@@ -25,9 +25,9 @@
   <div class="upcoming__layout">
     <aside class="calendar" aria-label="Calendario">
       <div class="calendar__nav">
-        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}" aria-label="Mes anterior" data-nav="prev">←</a>
+        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}&only_day={% if only_day %}1{% else %}0{% endif %}" aria-label="Mes anterior" data-nav="prev">←</a>
         <span class="calendar__month">{{ selected_date|date:"F Y" }}</span>
-        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}" aria-label="Mes siguiente" data-nav="next">→</a>
+        <a class="calendar__arrow" href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}1{% else %}0{% endif %}&only_day={% if only_day %}1{% else %}0{% endif %}" aria-label="Mes siguiente" data-nav="next">→</a>
       </div>
       <table class="calendar__table">
         <thead>
@@ -54,7 +54,7 @@
                 {% if day.month == selected_date.month and day|date:'j' in days_with_gifts %}
                   <td class="calendar__day calendar__day--has-gifts{% if day == selected_date %} calendar__day--selected{% endif %}{% if day == today %} calendar__day--today{% endif %}">
                     <a class="calendar__day-link calendar__day-link--has-gifts"
-                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}&amp;pending={% if only_pending %}1{% else %}0{% endif %}"
+                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}{% query_keep 'pending' %}{% query_keep 'only_day' %}"
                        aria-label="{{ day|date:'j' }} — tiene regalos">
                       <span class="calendar__day-number">{{ day|date:'j' }}</span>
                     </a>
@@ -62,7 +62,7 @@
                 {% else %}
                   <td class="calendar__day{% if day.month != selected_date.month %} calendar__day--other{% endif %}{% if day == selected_date %} calendar__day--selected{% endif %}{% if day == today %} calendar__day--today{% endif %}">
                     <a class="calendar__day-link"
-                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}&amp;pending={% if only_pending %}1{% else %}0{% endif %}">
+                       href="{% url 'gifts:upcoming' %}?date={{ day|date:'Y-m-d' }}{% query_keep 'pending' %}{% query_keep 'only_day' %}">
                       <span class="calendar__day-number">{{ day|date:'j' }}</span>
                     </a>
                   </td>
@@ -82,12 +82,26 @@
     <div class="upcoming__content">
       <div class="upcoming__filters">
         <p class="upcoming__subtitle">
-          {{ gift_count }} regalo{{ gift_count|pluralize }}, del más próximo al más lejano
+          {% if only_day %}
+            {{ gift_count }} regalo{{ gift_count|pluralize }} el {{ selected_date|date:"j \d\e F" }}
+          {% else %}
+            {{ gift_count }} regalo{{ gift_count|pluralize }}, del más próximo al más lejano
+          {% endif %}
         </p>
-        <a class="filter-link{% if only_pending %} filter-link--active{% endif %}"
-           href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}&pending={% if only_pending %}0{% else %}1{% endif %}">
-          {% if only_pending %}✓ Solo pendientes{% else %}Solo pendientes{% endif %}
-        </a>
+        {% comment %}
+          Los dos filtros se enean entre sí, así que cada enlace conserva el
+          estado del otro y el día seleccionado con query_toggle / query_keep.
+        {% endcomment %}
+        <div class="upcoming__filter-pills">
+          <a class="filter-link{% if only_pending %} filter-link--active{% endif %}"
+             href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}{% query_toggle 'pending' %}{% query_keep 'only_day' %}">
+            {% if only_pending %}✓ Solo pendientes{% else %}Solo pendientes{% endif %}
+          </a>
+          <a class="filter-link{% if only_day %} filter-link--active{% endif %}"
+             href="{% url 'gifts:upcoming' %}?date={{ selected_date|date:'Y-m-d' }}{% query_keep 'pending' %}{% query_toggle 'only_day' %}">
+            {% if only_day %}✓ Solo este día{% else %}Solo este día{% endif %}
+          </a>
+        </div>
       </div>
 
       {% if person_groups %}
